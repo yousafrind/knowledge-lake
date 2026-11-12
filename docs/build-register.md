@@ -238,3 +238,19 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Not built.** Auth and scopes (W-032), so `serve` is localhost-only for now. The MCP SDK installed is 2.x (`mcp.server.mcpserver.MCPServer`), whose API differs from the 1.x `FastMCP` in most online examples. The HTTP transport was checked by hand with the MCP client against a running `uvicorn` (tools listed correctly); automated tests call the server object instead.
 
 **Walking skeleton closed (W-001 to W-013).** `lake_cli/main.py` also gained `lake work` (`work()`, `build_registry()`: runs parse, chunk and embed jobs, using Docling for pdf/docx/html/epub only if it is installed, else the plain parser). `tests/test_end_to_end.py::test_add_work_search_fetch` runs add, work, search and fetch in one test.
+
+---
+
+## W-014 Golden question set and eval runner (Done)
+
+**What.** A fixed set of questions with known answers, and a script that scores search against them, so changes to chunking, embedding or ranking can be judged by numbers.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Fixture documents | `evals/fixtures/docs/*.md` (raft, postgres, bread, hiking) | Small, unrelated documents, so a wrong answer is clearly wrong. |
+| Golden set | `evals/golden/questions.jsonl` (8 questions; each names the document and a phrase the right passage must contain) | A question counts as answered only if a returned passage comes from the right document *and* contains the phrase. |
+| Runner | `evals/run_eval.py` → `evaluate()`; run `python evals/run_eval.py --embedder hash` | Ingests the fixtures, runs jobs, asks every question, computes recall@5 and MRR (average of 1/rank), writes `evals/runs/<time>-<embedder>.json`. Use a scratch database. |
+
+**Checks.** `tests/test_eval_runner.py::test_eval_runner_scores_golden_set` requires recall@5 ≥ 0.75 with the offline hash embedder. Measured: recall@5 = 1.00, MRR = 0.91.
+
+**Caveat.** The set is tiny and easy, so it catches breakage, not subtle quality differences. Grow it from your real documents; the real-embedder score is still to be recorded on your machine.

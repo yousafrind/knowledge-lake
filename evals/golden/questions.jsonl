@@ -1,0 +1,8 @@
+{"q": "How does a candidate become the leader?", "doc": "raft.md", "contains": "majority of votes"}
+{"q": "When is a log entry committed?", "doc": "raft.md", "contains": "committed once"}
+{"q": "What reclaims space from dead tuples?", "doc": "postgres.md", "contains": "dead tuples"}
+{"q": "Which index speeds up nearest neighbour search?", "doc": "postgres.md", "contains": "HNSW"}
+{"q": "How often do I feed the starter?", "doc": "bread.md", "contains": "daily"}
+{"q": "How long should the loaf bake in the Dutch oven?", "doc": "bread.md", "contains": "forty minutes"}
+{"q": "What should I do about blisters?", "doc": "hiking.md", "contains": "broken-in boots"}
+{"q": "When should I turn back on a hike?", "doc": "hiking.md", "contains": "thunderstorms"}
