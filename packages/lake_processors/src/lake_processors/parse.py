@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 from lake_core import ids
 from lake_core.jobs import enqueue_job
 from lake_core.objectstore import get_original, write_package
+from lake_core.titles import title_from_markdown
 from lake_parsers.base import Parser
 from sqlalchemy import text
 
@@ -49,7 +50,7 @@ class ParseProcessor:
             "content_sha256": target,
             "rev": 1,
             "source_type": stype,
-            "title": PurePosixPath(filename).stem,
+            "title": title_from_markdown(parsed.markdown, PurePosixPath(filename).stem),
             "tier": "original",
             "parser": {"name": parser.name, "version": parser.version},
             "files": list(files),

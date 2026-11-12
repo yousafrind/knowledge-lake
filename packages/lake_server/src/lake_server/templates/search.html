@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block body %}
+<h2>Search: {{ q }}</h2>
+{% for h in hits %}<div class="hit"><a href="/doc/{{ h.sha }}#{{ h.anchor }}">{{ h.citation.title }}</a>
+<span class="muted">{{ h.citation.section or '' }} · {{ h.citation.tier }} · {{ h.citation.location }}</span>
+<div>{{ h.text[:400] }}{% if h.text|length > 400 %}…{% endif %}</div>
+<div class="muted">{{ h.citation.uri }}</div></div>
+{% else %}<p class="muted">No results.</p>{% endfor %}
+{% endblock %}

@@ -254,3 +254,24 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_eval_runner.py::test_eval_runner_scores_golden_set` requires recall@5 ≥ 0.75 with the offline hash embedder. Measured: recall@5 = 1.00, MRR = 0.91.
 
 **Caveat.** The set is tiny and easy, so it catches breakage, not subtle quality differences. Grow it from your real documents; the real-embedder score is still to be recorded on your machine.
+
+---
+
+## W-015 GUI v1: browse, search, reader (Done)
+
+**What.** A private web page where you can walk the lake, search it and read documents. Read-only for now.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Routes | `packages/lake_server/src/lake_server/gui.py` → `build_gui_routes()`: `/login`, `/logout`, `/` (browse), `/search`, `/doc/{sha}` | Server-rendered pages calling the same `search()` the MCP tools use, so you and agents see identical results. |
+| Login | `gui.py` → `login()`, `guard()`; setting `LAKE_GUI_PASSWORD` in `lake_core/settings.py` | One password, compared in constant time, stored in a signed session cookie. The GUI is **off** unless the password is set. |
+| Browse | `browse()` | Walks the stored file paths like folders (`?path=/notes`), showing sub-folders and documents with their titles. |
+| Reader | `doc()`, `render_markdown()` | Renders `content.md`; heading ids use the same slug as citation URIs, so a search hit links straight to its section (`/doc/<hash>#databases-replication`). Shows outline, versions and locations. |
+| Safety | `MarkdownIt("commonmark", {"html": False})` | Raw HTML inside documents is escaped. The test caught that the library's default would have let `<script>` through. |
+| Templates | `packages/lake_server/src/lake_server/templates/*.html` | Plain HTML and a little CSS; no JavaScript build step. |
+| Wiring | `lake_server/app.py` → `build_app()` | GUI routes plus MCP at `/mcp` in one app; run with `lake serve`. |
+| Titles | `lake_core/titles.py` → `title_from_markdown()` (used by registrar and parse step) | Documents show their first heading as title instead of the file name. |
+
+**Checks.** `tests/test_gui.py`: `test_requires_login`, `test_browse_search_read`, `test_render_markdown_ids_match_citation_slugs`.
+
+**Deviations / not built.** HTMX is not used yet (plain links and forms are enough for v1). No page-image viewer, links-in/out (needs W-017), editing or review queue (W-023). `lake serve` needs `LAKE_S3_*` and `LAKE_GUI_PASSWORD`.

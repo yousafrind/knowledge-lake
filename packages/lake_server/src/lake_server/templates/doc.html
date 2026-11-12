@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}{{ title }}{% endblock %}{% block body %}
+<div class="layout"><aside>
+<h3>Outline</h3><ul>{% for h in outline %}<li style="margin-left:{{ (h.level-1)*0.8 }}rem"><a href="#{{ h.anchor }}">{{ h.text }}</a></li>{% endfor %}</ul>
+<h3>Versions</h3><ul>{% for v in versions %}<li>rev {{ v.rev }}{% if v.canonical %} (current){% endif %} · {{ v.tier }}</li>{% endfor %}</ul>
+<h3>Locations</h3><ul>{% for l in locations %}<li class="muted">{{ l }}</li>{% endfor %}</ul>
+<p class="muted">{{ uri }}</p>
+</aside><main><h1>{{ title }}</h1>{{ body|safe }}</main></div>
+{% endblock %}

@@ -1446,17 +1446,25 @@ name = "lake-server"
 version = "0.0.0"
 source = { editable = "packages/lake_server" }
 dependencies = [
+    { name = "itsdangerous" },
+    { name = "jinja2" },
     { name = "lake-core" },
     { name = "lake-retrieval" },
+    { name = "markdown-it-py" },
     { name = "mcp" },
+    { name = "python-multipart" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "itsdangerous" },
+    { name = "jinja2" },
     { name = "lake-core", editable = "packages/lake_core" },
     { name = "lake-retrieval", editable = "packages/lake_retrieval" },
+    { name = "markdown-it-py" },
     { name = "mcp" },
+    { name = "python-multipart" },
     { name = "uvicorn" },
 ]
 

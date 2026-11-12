@@ -2,7 +2,7 @@
 name = "lake-server"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["lake-core", "lake-retrieval", "mcp", "uvicorn"]
+dependencies = ["lake-core", "lake-retrieval", "mcp", "uvicorn", "jinja2", "itsdangerous", "markdown-it-py", "python-multipart"]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block body %}
+<h2>Browse{% if prefix %}: {{ prefix }}{% endif %}</h2>
+{% if prefix %}<p><a href="/?path={{ parent|urlencode }}">↑ up</a></p>{% endif %}
+<ul>
+{% for d in dirs %}<li>📁 <a href="/?path={{ d.path|urlencode }}">{{ d.name }}</a> <span class="muted">{{ d.count }} files</span></li>{% endfor %}
+{% for f in files %}<li><a href="/doc/{{ f.sha }}">{{ f.title }}</a> <span class="muted">{{ f.name }} · {{ f.source_type }}</span></li>{% endfor %}
+</ul>
+{% if not dirs and not files %}<p class="muted">Nothing here yet. Add files with <code>lake add &lt;path&gt;</code>.</p>{% endif %}
+{% endblock %}

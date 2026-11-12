@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 from lake_core import ids
 from lake_core.jobs import enqueue_job
 from lake_core.objectstore import ObjectStore, put_original, write_package
+from lake_core.titles import title_from_markdown
 from sqlalchemy import Engine, text
 
 from lake_ingest.adapter import Item
@@ -93,7 +94,7 @@ class Registrar:
             "content_sha256": sha,
             "rev": 1,
             "source_type": stype,
-            "title": PurePosixPath(item.path).stem,
+            "title": title_from_markdown(item.markdown, PurePosixPath(item.path).stem),
             "tier": "original",
             "parser": {"name": "passthrough", "version": "1"},
             "files": ["content.md"],

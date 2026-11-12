@@ -1,0 +1,4 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Log in</title></head><body style="font:16px system-ui;max-width:24rem;margin:4rem auto">
+<h1>Knowledge Lake</h1>{% if error %}<p style="color:#b00">{{ error }}</p>{% endif %}
+<form method="post" action="/login"><input type="password" name="password" autofocus placeholder="Password"> <button>Log in</button></form>
+</body></html>
