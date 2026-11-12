@@ -1,7 +1,7 @@
 """The processor contract (see docs/adr/0001-processor-run-signature.md)."""
 
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 
 from lake_core.objectstore import ObjectStore
 from sqlalchemy import Engine
@@ -16,7 +16,7 @@ class Context:
 class Processor(Protocol):
     name: str
     version: str  # bump to trigger reprocessing
-    cost: Literal["cpu", "gpu", "llm"]
+    cost: str  # "cpu", "gpu" or "llm"
 
     def run(self, target: str, ctx: Context) -> None: ...
 

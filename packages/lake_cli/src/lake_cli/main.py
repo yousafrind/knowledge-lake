@@ -24,14 +24,51 @@ def add(path: str) -> str:
     return f"{seen} files, {new_content} new content, {new_locations} new locations"
 
 
+def build_registry(embedder_name: str):  # type: ignore[no-untyped-def]
+    from lake_core.embedding import make_embedder
+    from lake_parsers.base import Parser
+    from lake_parsers.plain import PlainTextParser
+    from lake_processors.chunk import ChunkProcessor
+    from lake_processors.contract import Registry
+    from lake_processors.embed import EmbedProcessor
+    from lake_processors.parse import ParseProcessor
+
+    parsers: dict[str, Parser] = {}
+    try:  # Docling is optional; without it everything falls back to the plain parser
+        from lake_parsers.docling_backend import DoclingParser
+
+        docling = DoclingParser()
+        parsers = {t: docling for t in ("pdf", "docx", "html", "epub")}
+    except Exception:
+        pass
+    reg = Registry()
+    reg.add(ParseProcessor(parsers, PlainTextParser()))
+    reg.add(ChunkProcessor())
+    reg.add(EmbedProcessor(make_embedder(embedder_name)))
+    return reg
+
+
+def work() -> str:
+    from lake_processors.contract import Context
+    from lake_processors.loop import run_until_idle
+
+    s = load_settings()
+    store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
+    n = run_until_idle(Context(make_engine(s.database_url), store), build_registry(s.embedder))
+    return f"{n} jobs run"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="lake")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("add", help="add a file or folder").add_argument("path")
+    sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
     if args.cmd == "add":
         print(add(args.path))
+    if args.cmd == "work":
+        print(work())
     if args.cmd == "serve":
         import uvicorn
 

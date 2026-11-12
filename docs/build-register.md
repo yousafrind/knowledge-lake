@@ -235,4 +235,6 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 
 **Checks.** `tests/test_mcp_server.py`: `test_search_then_fetch_round_trip`, `test_fetch_rejects_bad_ids`, `test_server_exposes_exactly_search_and_fetch_over_mcp` (calls the tool through the MCP server object).
 
-**Not built.** Auth and scopes (W-032), so `serve` is localhost-only for now. The MCP SDK installed is 2.x (`mcp.server.mcpserver.MCPServer`), whose API differs from the 1.x `FastMCP` in most online examples. The HTTP transport was not exercised by a real client in this sandbox, only the server object.
+**Not built.** Auth and scopes (W-032), so `serve` is localhost-only for now. The MCP SDK installed is 2.x (`mcp.server.mcpserver.MCPServer`), whose API differs from the 1.x `FastMCP` in most online examples. The HTTP transport was checked by hand with the MCP client against a running `uvicorn` (tools listed correctly); automated tests call the server object instead.
+
+**Walking skeleton closed (W-001 to W-013).** `lake_cli/main.py` also gained `lake work` (`work()`, `build_registry()`: runs parse, chunk and embed jobs, using Docling for pdf/docx/html/epub only if it is installed, else the plain parser). `tests/test_end_to_end.py::test_add_work_search_fetch` runs add, work, search and fetch in one test.

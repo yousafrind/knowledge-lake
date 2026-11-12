@@ -1346,6 +1346,8 @@ source = { editable = "packages/lake_cli" }
 dependencies = [
     { name = "lake-core" },
     { name = "lake-ingest" },
+    { name = "lake-parsers" },
+    { name = "lake-processors" },
     { name = "lake-server" },
     { name = "uvicorn" },
 ]
@@ -1354,6 +1356,8 @@ dependencies = [
 requires-dist = [
     { name = "lake-core", editable = "packages/lake_core" },
     { name = "lake-ingest", editable = "packages/lake_ingest" },
+    { name = "lake-parsers", editable = "packages/lake_parsers" },
+    { name = "lake-processors", editable = "packages/lake_processors" },
     { name = "lake-server", editable = "packages/lake_server" },
     { name = "uvicorn" },
 ]

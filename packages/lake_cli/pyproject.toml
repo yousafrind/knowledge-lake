@@ -2,7 +2,7 @@
 name = "lake-cli"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["lake-core", "lake-ingest", "lake-server", "uvicorn"]
+dependencies = ["lake-core", "lake-ingest", "lake-server", "lake-processors", "lake-parsers", "uvicorn"]
 
 [project.scripts]
 lake = "lake_cli.main:main"
