@@ -26,7 +26,18 @@ No upward imports and no sideways imports within a layer. Shared types move down
 1. Read `docs/work/W-NNN.md` and the sections named in `implements` in `docs/work/items.csv`.
 2. Write the failing checks first, then build only what the card lists.
 3. Done means: the card's checks pass, `make test` is clean, nothing outside `touches` changed,
-   and `status` is updated in `items.csv`.
+   `status` is updated in `items.csv`, and `docs/build-register.md` has an entry for the item.
+
+## Git workflow
+
+No feature branches or PRs. Commit straight to `main` and push, one commit per work item
+(or smaller), message starting with the item id, e.g. `W-002: local stack`.
+Doc syncs use `docs: sync <name> (rev N)`.
+
+## Build register
+
+`docs/build-register.md` records what each finished item built: where it is (file, class,
+function) and why, in plain words. Update it in the same commit as the work.
 
 ## Deviations
 
