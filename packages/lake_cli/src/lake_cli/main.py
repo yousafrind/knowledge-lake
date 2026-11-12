@@ -28,9 +28,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="lake")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("add", help="add a file or folder").add_argument("path")
+    sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
     if args.cmd == "add":
         print(add(args.path))
+    if args.cmd == "serve":
+        import uvicorn
+
+        uvicorn.run("lake_server.app:build_app", factory=True, host="127.0.0.1", port=8000)
     return 0
 
 

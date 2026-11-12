@@ -219,3 +219,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_search.py`: `test_rrf_rewards_agreement`, `test_hybrid_search_returns_cited_passages`, `test_filters_cut_candidates_before_search`, `test_token_budget_trims`.
 
 **Not built.** The rerank step and graph expansion: the architecture lists rerank, but it needs a model download; add it behind a `Reranker` protocol once the eval set (W-014) shows it is needed.
+
+---
+
+## W-013 MCP server: search and fetch (Done)
+
+**What.** Agents can now ask the lake questions over MCP.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Tool logic | `packages/lake_server/src/lake_server/mcp_tools.py` → `search_json()`, `fetch_json()` | Plain functions, so they are testable without a network. `search` returns evidence only (passages + citation URI, tier, location, score), never a written answer. `fetch` takes a `lake://` URI from `search` and returns that section's full text (or the whole document if the URI has no section). Bad URIs raise a clear error. |
+| Server | `create_server()` → `MCPServer("knowledge-lake")` with exactly two tools, `search(query)` and `fetch(id)` | One string argument each, which is the shape ChatGPT connectors require; Claude and Codex also accept it. Richer tools arrive in W-019. |
+| App | `lake_server/app.py` → `build_app()` (ASGI, path `/mcp`) | Streamable HTTP, bound to localhost by `lake serve`. |
+| Command | `lake_cli/main.py` → `lake serve` | Starts it with uvicorn on 127.0.0.1:8000. |
+
+**Checks.** `tests/test_mcp_server.py`: `test_search_then_fetch_round_trip`, `test_fetch_rejects_bad_ids`, `test_server_exposes_exactly_search_and_fetch_over_mcp` (calls the tool through the MCP server object).
+
+**Not built.** Auth and scopes (W-032), so `serve` is localhost-only for now. The MCP SDK installed is 2.x (`mcp.server.mcpserver.MCPServer`), whose API differs from the 1.x `FastMCP` in most online examples. The HTTP transport was not exercised by a real client in this sandbox, only the server object.
