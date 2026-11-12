@@ -399,3 +399,25 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_explain_path.py`: `test_explain_indexed_and_ignored_paths`, `test_cli_explain_prints_json`; tool list test updated (seven tools).
 
 **Limit.** Per-subtree skip rows and the "largest ignored subtrees" report from the plan are not stored (skips are recomputed on demand).
+
+---
+
+## W-023 GUI review queue, sources, jobs and markdown editor (Done)
+
+**What.** The GUI can now change things (always as new rows, never by editing history): review suggestions, manage sources and failed jobs, edit and create markdown, set labels.
+
+| Screen / route | Where | Why, in plain words |
+|---|---|---|
+| Editor `GET/POST /doc/{sha}/edit`, `POST /preview` | `packages/lake_server/src/lake_server/gui.py`; logic in `lake_server/edit.py` → `save_revision()`, `current_markdown()`; template `templates/edit.html` | Plain textarea beside a live preview (a few lines of inline JavaScript call `/preview`, which renders with the same server-side renderer as the reader). Saving writes the **next revision** (`tier: derived`, `edited_by: gui`), makes it the canonical one and queues re-chunking for that document only. Revision 1 stays recoverable. |
+| New note `GET/POST /new` | `new_page()` | Registers a markdown item under source `gui` via the normal registrar, so notes get chunked, embedded, linked and classified like anything else. |
+| Labels `POST /doc/{sha}/label` | `edit.py` → `set_manual_label()` | Saves a `manual` label, which wins over rules and is never overwritten by later runs. |
+| Review `GET /review`, `POST /review/group/{id}/accept|reject` | `lake_server/admin.py` → `review_items()`, `decide_group()` | Lists suggested groups (duplicates, version families) and parses flagged `needs_review`; accept/reject only changes the group's status. |
+| Sources & jobs `GET /jobs`, retry, add path, crawl | `admin.py` → `jobs_overview()`, `retry_job()`; `gui.py` → `add_path()`, `crawl()` | Shows queue counts by processor and status, failing/dead jobs with Retry (resets attempts), sources with counts. "Add" walks a server-side path with the disk rules; "Crawl" runs the crawler in a background thread. |
+
+**Checks.** `tests/test_gui.py`: `test_edit_makes_new_derived_revision_and_old_one_stays`, `test_new_note_review_jobs_and_labels`, `test_group_decision_and_job_retry` (plus the earlier login/browse/search/reader tests).
+
+**Limits / to know.**
+- Saved edits are searchable only after a worker runs (`lake work`) re-chunks and re-embeds the new revision.
+- The crawl runs inside the web process thread with no progress display; "Add path" runs inside the request and can be slow for large trees.
+- No quarantine release screen yet (needs W-027's secret scan). Cookie-based forms rely on the session cookie's `SameSite=Lax`, there is no separate CSRF token.
+- Groups accepted in review are not yet used as search filters.

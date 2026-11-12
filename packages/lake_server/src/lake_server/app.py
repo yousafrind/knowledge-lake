@@ -23,6 +23,6 @@ def build_app() -> Starlette:
     middleware: list = []  # type: ignore[type-arg]
     if s.gui_password:
         store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
-        routes, middleware = build_gui_routes(engine, embedder, store, s.gui_password)
+        routes, middleware = build_gui_routes(engine, embedder, store, s.gui_password, s.config_dir)
     routes.append(Mount("/", app=mcp_app))
     return Starlette(routes=routes, middleware=middleware, lifespan=mcp_app.router.lifespan_context)

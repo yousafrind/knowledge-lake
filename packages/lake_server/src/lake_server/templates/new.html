@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block body %}
+<h2>New note</h2><form method="post" action="/new">
+<textarea name="markdown" style="width:100%;min-height:25rem;font:14px monospace" placeholder="# Title&#10;&#10;Write markdown here"></textarea>
+<p><button>Save note</button></p></form>{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<h2>Edit</h2><p class="muted">Saving creates a new revision marked as derived; the original stays recoverable.</p>
+<form method="post" action="/doc/{{ sha }}/edit"><div style="display:flex;gap:1rem">
+<textarea id="src" name="markdown" style="flex:1;min-height:30rem;font:14px monospace">{{ source }}</textarea>
+<div id="pv" style="flex:1;border:1px solid #ddd;padding:.5rem;overflow:auto">{{ preview|safe }}</div></div>
+<p><button>Save as new revision</button> <a href="/doc/{{ sha }}">Cancel</a></p></form>
+<script>
+const src=document.getElementById('src'),pv=document.getElementById('pv');let t;
+src.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(async()=>{
+ const r=await fetch('/preview',{method:'POST',body:new URLSearchParams({markdown:src.value})});pv.innerHTML=await r.text();},300);});
+</script>{% endblock %}

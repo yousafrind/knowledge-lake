@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<h2>Sources &amp; jobs</h2>{% if flash %}<p><b>{{ flash }}</b></p>{% endif %}
+<form method="post" action="/sources/path"><input type="text" name="path" placeholder="Folder or file path on the server"> <button>Add</button></form>
+<form method="post" action="/sources/crawl"><input type="text" name="url" placeholder="https://docs.example.com/guide/"> <button>Crawl</button></form>
+<h3>Sources</h3><ul>{% for s in sources %}<li>{{ s.name }} <span class="muted">{{ s.docs }} documents, {{ s.locations }} locations</span></li>{% endfor %}</ul>
+<h3>Queue</h3><table>{% for c in counts %}<tr><td>{{ c.processor }}</td><td>{{ c.status }}</td><td>{{ c.n }}</td></tr>{% endfor %}</table>
+<h3>Needs attention</h3>
+{% for j in problems %}<div class="hit"><b>{{ j.processor }}</b> {{ j.status }} · attempts {{ j.attempts }}<br><span class="muted">{{ j.target }}</span><br>{{ j.error }}
+<form method="post" action="/jobs/{{ j.id }}/retry"><button>Retry</button></form></div>
+{% else %}<p class="muted">Nothing failing.</p>{% endfor %}
+{% endblock %}
