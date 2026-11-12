@@ -201,3 +201,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_embed.py::test_embed_and_full_text`: vector search ranks the right chunk first, full-text finds the other, rerun adds no rows.
 
 **Gap.** `BgeSmallEmbedder` needs `sentence-transformers` and a model download (blocked in this sandbox), so it is untested here. Install with `pip install sentence-transformers` on your machine; until then use `LAKE_EMBEDDER=hash` (search is word-overlap only).
+
+---
+
+## W-012 Hybrid search, fusion and citations (Done, no reranker)
+
+**What.** One function that takes a question and returns the best passages with proof of where each came from.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Search | `packages/lake_retrieval/src/lake_retrieval/search.py` → `search()` | Runs two searches (meaning via vectors, words via full-text), each already limited by the filters, takes 50 candidates from each, merges them, and returns the top passages. |
+| Filters first | `Filters`, SQL fragment `_BASE` | Source type and trust tier cut the candidate set *before* ranking, so a filtered search still returns a full list. Only canonical packages are searched. |
+| Fusion | `rrf()` (reciprocal rank fusion, k=60) | A passage ranked well by both searches beats one ranked top by only one, and no score scaling is needed between the two. |
+| Citation | `make_uri()`, `slug()`, `Passage.citation` | `lake://<hash>#<rev>/<section-slug>`, title, section, file location and tier, matching the architecture's citation format. |
+| Budget | `max_chars` parameter | Stops adding passages once the character budget is used (always keeps at least one). Characters stand in for tokens for now. |
+
+**Checks.** `tests/test_search.py`: `test_rrf_rewards_agreement`, `test_hybrid_search_returns_cited_passages`, `test_filters_cut_candidates_before_search`, `test_token_budget_trims`.
+
+**Not built.** The rerank step and graph expansion: the architecture lists rerank, but it needs a model download; add it behind a `Reranker` protocol once the eval set (W-014) shows it is needed.

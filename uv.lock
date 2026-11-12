@@ -1387,6 +1387,12 @@ requires-dist = [
 name = "lake-retrieval"
 version = "0.0.0"
 source = { editable = "packages/lake_retrieval" }
+dependencies = [
+    { name = "lake-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "lake-core", editable = "packages/lake_core" }]
 
 [[package]]
 name = "lake-server"
