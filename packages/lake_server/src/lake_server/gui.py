@@ -209,6 +209,11 @@ def build_gui_routes(
         decide_group(engine, gid, request.path_params["verb"] == "accept")
         return RedirectResponse("/review", status_code=303)
 
+    async def quarantine_decision(request: Request) -> Response:
+        if request.path_params["verb"] == "release":
+            Registrar(engine, store).release(request.path_params["sha"])
+        return RedirectResponse("/review", status_code=303)
+
     async def jobs(request: Request) -> Response:
         return templates.TemplateResponse(
             request, "jobs.html", {**jobs_overview(engine), "flash": request.query_params.get("m")}
@@ -295,6 +300,7 @@ def build_gui_routes(
         Route("/preview", guard(preview), methods=["POST"]),
         Route("/review", guard(review)),
         Route("/review/group/{gid:int}/{verb}", guard(group_decision), methods=["POST"]),
+        Route("/quarantine/{sha}/{verb}", guard(quarantine_decision), methods=["POST"]),
         Route("/jobs", guard(jobs)),
         Route("/jobs/{jid}/retry", guard(job_retry), methods=["POST"]),
         Route("/sources/path", guard(add_path), methods=["POST"]),

@@ -6,11 +6,12 @@ import re
 from lake_core.embedding import Embedder
 from lake_core.objectstore import ObjectStore
 from lake_ingest.explain import explain_path_json
+from lake_ingest.registrar import Registrar
 from lake_retrieval.search import Filters, search, slug
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy import Engine, text
 
-from lake_server import code_tools
+from lake_server import code_tools, write_tools
 
 URI = re.compile(r"^lake://([0-9a-f]{64})#(\d+)/(.*)$")
 
@@ -201,6 +202,11 @@ def create_server(
 ) -> MCPServer:
     server = MCPServer("knowledge-lake")
 
+    def _registrar() -> Registrar:
+        if store is None:
+            raise ValueError("object store not configured")
+        return Registrar(engine, store)
+
     @server.tool()
     def search(query: str) -> str:  # noqa: F811
         """Search the lake. Returns ranked passages with citation URIs (evidence, not answers)."""
@@ -278,5 +284,24 @@ def create_server(
         if store is None:
             raise ValueError("object store not configured")
         return code_tools.dependency_docs_json(engine, store, repo)
+
+    @server.tool()
+    def save_document(
+        title: str, content: str, tags: list[str] | None = None, project: str | None = None
+    ) -> str:
+        """Save a generated document (markdown) to the lake. Stored as derived, secrets redacted."""
+        return write_tools.save_document_json(engine, _registrar(), title, content, tags, project)
+
+    @server.tool()
+    def save_conversation(
+        title: str,
+        messages: list[dict[str, str]],
+        tags: list[str] | None = None,
+        project: str | None = None,
+    ) -> str:
+        """Save a conversation: messages are {role: user|assistant, content: text} in order."""
+        return write_tools.save_conversation_json(
+            engine, _registrar(), title, messages, tags, project
+        )
 
     return server

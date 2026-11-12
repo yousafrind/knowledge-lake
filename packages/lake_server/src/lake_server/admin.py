@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from lake_ingest.quarantine import held
 from sqlalchemy import Engine, text
 
 
@@ -24,7 +25,7 @@ def review_items(engine: Engine) -> dict[str, list[Any]]:
                 "where canonical and (manifest->'qa'->>'needs_review')::boolean is true"
             )
         ).all()
-    return {"groups": list(groups), "qa": list(qa)}
+    return {"groups": list(groups), "qa": list(qa), "held": held(engine)}
 
 
 def decide_group(engine: Engine, group_id: int, accept: bool) -> None:

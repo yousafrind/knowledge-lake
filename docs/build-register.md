@@ -474,3 +474,23 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_code_index.py`: `test_manifest_parsing`, `test_dependency_docs_link_to_crawled_documentation`.
 
 **Limits.** Matching is by name only (no package-registry lookup of the official docs URL), so very short or generic names (`click`, `rich`) can match unrelated pages. Lockfiles (resolved versions) are not read. Docs are not version-matched to the pinned version.
+
+---
+
+## W-027 Chat importers, write-back tools and secret scan (Done; export formats unverified)
+
+**What.** Conversations and agent-written documents can enter the lake, and secrets are caught before anything is stored or indexed.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Secret scanner | `packages/lake_core/src/lake_core/secrets.py` → `scan()`, `redact()`, `Finding`, `PATTERNS` | Regexes for AWS keys, GitHub/Slack/Google/Stripe/LLM-provider keys, private-key blocks, JWTs, and generic `password=`/`token:` assignments (only if the value looks random, entropy ≥ 3.5). Findings carry kind and line, never the secret. |
+| Quarantine | `lake_ingest/registrar.py` → `Registrar.register()` (scan step), `Registrar.release()`; table `quarantine` (`0007_quarantine.py`); `lake_ingest/quarantine.py` → `held()` | A text file with a secret is **not indexed**: its bytes go to `quarantine/<hash>` (never `originals/`), content type becomes `quarantined`, no package and no jobs. Review shows what was found; **Release** stores it normally and starts jobs. Binary types (PDF, images...) are not text-scanned. |
+| Chats redact instead | `Item.on_secrets="redact"` | A conversation is too valuable to drop: secrets are replaced by `[REDACTED:kind]` before hashing and storing, and the manifest lists `redacted`. |
+| Derived tier | `Item.tier`, `Item.title`, `Item.meta` (merged into the manifest); registrar writes `tier: derived` to manifest and `package.tier` | Chats and generated documents are marked model output, so search results can flag or filter them (`tier`). |
+| Export importers | `lake_ingest/chat.py` → `ClaudeExportAdapter`, `ChatGPTExportAdapter`, `ClaudeCodeAdapter`, `render_conversation()` | Claude.ai `conversations.json` (folder, file or zip), ChatGPT `conversations.json` (follows the final branch of the message tree, so discarded drafts are skipped), Claude Code `*.jsonl` transcripts. Each conversation becomes `chat://<origin>/<id>`. |
+| Write-back tools | `lake_server/write_tools.py` → `save_document_json()`, `save_conversation_json()`; MCP tools `save_document`, `save_conversation` | Agents send title, content (or messages), optional tags and project. Stored as `generated` / `chat`, derived, redacted, 500k character cap; tags become `tag:<name>` labels and project a `project` label (both `manual` source, because you asked the agent). Searchable after the next `lake work`. |
+| GUI | `review.html` "Held back" section, route `POST /quarantine/{sha}/release` | |
+
+**Checks.** `tests/test_secrets_chats.py` (scanner, redaction, quarantine then release, three importers, write-back tools) and `test_gui.py::test_quarantine_shown_and_released_from_review`.
+
+**Please verify on your machine.** The plan said the export schemas were not checked, and they are still unchecked: the importers follow my understanding of the current Claude.ai / ChatGPT exports and Claude Code session files, tested only against hand-made samples. Run each on a real export; fix field names in `chat.py` if they differ. Also not done: the per-chat summary/decisions/open-questions extraction (needs an LLM step), Codex transcripts, generated-file `original.*` attachments, and a CLI command for the importers (call the adapters through `add()` in `lake_cli` or add `lake import-chats`).

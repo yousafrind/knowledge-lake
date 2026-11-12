@@ -6,6 +6,10 @@
 <form method="post" action="/review/group/{{ g.id }}/accept" style="display:inline"><button>Accept</button></form>
 <form method="post" action="/review/group/{{ g.id }}/reject" style="display:inline"><button>Reject</button></form></div>
 {% else %}<p class="muted">No suggestions waiting.</p>{% endfor %}
+<h3>Held back: secrets found</h3>
+{% for h in held %}<div class="hit"><span class="muted">{{ h.path }}</span> · {{ h.reasons|join(', ') }}
+<form method="post" action="/quarantine/{{ h.sha }}/release" style="display:inline"><button>Release into the lake</button></form></div>
+{% else %}<p class="muted">Nothing held.</p>{% endfor %}
 <h3>Parses that failed quality checks</h3>
 {% for q in qa %}<p><a href="/doc/{{ q.sha }}">{{ q.title }}</a> <span class="muted">{{ q.reasons }}</span></p>
 {% else %}<p class="muted">None.</p>{% endfor %}

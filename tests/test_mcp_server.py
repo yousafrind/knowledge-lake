@@ -66,6 +66,8 @@ def test_server_exposes_the_read_tools_over_mcp(lake) -> None:  # type: ignore[n
             "neighbors",
             "query",
             "resolve_source",
+            "save_conversation",
+            "save_document",
             "search",
         ]
         and "results" in body

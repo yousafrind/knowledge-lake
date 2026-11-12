@@ -113,3 +113,17 @@ def test_group_decision_and_job_retry(client: TestClient, db_url: str) -> None:
     client.post("/jobs/j1/retry")
     with eng.connect() as c:
         assert c.execute(text("select status from job where id='j1'")).scalar_one() == "pending"
+
+
+def test_quarantine_shown_and_released_from_review(
+    client: TestClient, db_url: str, store: ObjectStore
+) -> None:
+    login(client)
+    eng = make_engine(db_url)
+    body = "# Keys\n\nAKIAIOSFODNN7EXAMPLE"
+    r = Registrar(eng, store).register(Item(body.encode(), "/k.md", "disk", markdown=body))
+    assert r.quarantined
+    page = client.get("/review").text
+    assert "Held back" in page and "aws_access_key" in page and "/k.md" in page
+    assert client.post(f"/quarantine/{r.content_sha256}/release").status_code == 303
+    assert "Nothing held" in client.get("/review").text
