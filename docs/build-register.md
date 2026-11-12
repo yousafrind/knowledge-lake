@@ -46,3 +46,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Check.** `tests/test_stack.py::test_check_stack_script` runs the script against a real Postgres (URL from `LAKE_DATABASE_URL`, default `postgresql://lake:lake@localhost:5432/lake`) and an in-process fake S3 (moto), and expects the success line.
 
 **Honest limits.** This sandbox has no Docker daemon, so `compose.yaml` and `make up` were written but not run here; the script and the Postgres+pgvector side were verified against a native Postgres 16 install, and the S3 side only against moto, not real MinIO. Run `make up && make check-stack` once on your machine to confirm.
+
+---
+
+## W-003 lake_core: settings, db session, migrations (Done)
+
+**What.** The shared foundation every other package builds on: configuration, a way to talk to the database, and schema versioning.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Settings | `packages/lake_core/src/lake_core/settings.py` → `Settings`, `load_settings()` | One typed object holds database URL and S3 details. Required values have no default, so a missing one stops the program at startup instead of failing later. Order of precedence: explicit args, environment (`LAKE_*`), then `config/lake.toml`. This is the only file allowed to read the environment. |
+| Database | `lake_core/db.py` → `make_engine()`, `make_session_factory()`, `upgrade_to_head()` | One place creates connections and runs migrations, so no other package needs to know how. `expire_on_commit=False` keeps objects usable after a commit. |
+| Migrations | `lake_core/migrations/` (`env.py`, `script.py.mako`, `versions/0001_empty.py`) | Alembic keeps the schema versioned. Revision `0001` is intentionally empty (no tables until W-004). Migrations ship inside the package so any install can run them. |
+| Test database | `tests/conftest.py` → fixture `db_url` | Each test gets a fresh throwaway database that is dropped afterwards, so tests cannot affect each other. |
+
+**Checks.** `tests/test_core_settings_db.py`: `test_missing_required_settings_fail`, `test_env_overrides_toml`, `test_fresh_db_upgrades_to_head`, `test_only_lake_core_reads_environment` (greps all packages for `os.environ`/`getenv`; only `settings.py` may match).
+
+**Note.** Settings read a `config/lake.toml` file rather than the YAML files listed in the folder structure; those YAML files (`rules.yaml`, `sources.yaml`) are rules data and arrive with the classifier (W-021).
