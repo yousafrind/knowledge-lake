@@ -143,3 +143,75 @@ def extract_symbols(language: str, source: bytes) -> list[Symbol]:
 
     visit(_parser(language).parse(source).root_node, None)
     return out
+
+
+IDENTIFIERS = {
+    "identifier",
+    "property_identifier",
+    "type_identifier",
+    "field_identifier",
+    "shorthand_property_identifier",
+}
+CALLS = {"call", "call_expression", "method_invocation"}
+MEMBERS = {"attribute", "member_expression", "selector_expression", "field_expression"}
+IMPORTS = {
+    "import_statement",
+    "import_from_statement",
+    "import_declaration",
+    "use_declaration",
+    "import_spec",
+}
+
+
+@dataclass(frozen=True)
+class Reference:
+    name: str
+    line: int
+    kind: str  # "call" or "ref"
+
+
+def extract_references(language: str, source: bytes) -> tuple[list[Reference], list[str]]:
+    """Name-based references and imports (heuristic: no scope or type resolution)."""
+    refs: set[Reference] = set()
+    imports: list[str] = []
+
+    def is_call(node: Node) -> bool:
+        parent = node.parent
+        if parent is None:
+            return False
+        if parent.type in CALLS:
+            return (
+                parent.child_by_field_name("function") == node
+                or parent.child_by_field_name("name") == node
+            )
+        if parent.type in MEMBERS and parent.parent is not None and parent.parent.type in CALLS:
+            member = parent.child_by_field_name("attribute") or parent.child_by_field_name(
+                "property"
+            )
+            member = member or parent.child_by_field_name("field")
+            return member == node and parent.parent.child_by_field_name("function") == parent
+        return False
+
+    def visit(node: Node) -> None:
+        if node.type in IMPORTS:
+            imports.append(" ".join((node.text or b"").decode(errors="replace").split())[:200])
+        if node.type in IDENTIFIERS and node.text:
+            parent = node.parent
+            is_def = (
+                parent is not None
+                and parent.child_by_field_name("name") == node
+                and (parent.type in DEFS[language])
+            )
+            if not is_def:
+                refs.add(
+                    Reference(
+                        node.text.decode(errors="replace"),
+                        node.start_point[0] + 1,
+                        "call" if is_call(node) else "ref",
+                    )
+                )
+        for child in node.children:
+            visit(child)
+
+    visit(_parser(language).parse(source).root_node)
+    return sorted(refs, key=lambda r: (r.line, r.name)), imports

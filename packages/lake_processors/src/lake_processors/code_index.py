@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
-from lake_code.symbols import extract_symbols
+from lake_code.symbols import extract_references, extract_symbols
 from lake_core import ids
 from lake_core.jobs import enqueue_job
 from lake_core.languages import language_of
@@ -24,7 +24,7 @@ def fence(code: str, lang: str) -> str:
 
 class CodeIndexProcessor:
     name = "code_index"
-    version = "1"
+    version = "2"
     cost = "cpu"
 
     def run(self, target: str, ctx: Context) -> None:
@@ -39,6 +39,7 @@ class CodeIndexProcessor:
         source = get_original(ctx.store, target)
         code = source.decode("utf-8", errors="replace")
         symbols = extract_symbols(lang, source)
+        refs, imports = extract_references(lang, source)
         lines = code.splitlines()
         pid = ids.package_id(target, 1)
         manifest = {
@@ -64,6 +65,22 @@ class CodeIndexProcessor:
                         "values (:i,:h,1,true,cast(:m as jsonb)) on conflict do nothing"
                     ),
                     {"i": pid, "h": target, "m": json.dumps(manifest)},
+                )
+            for r in refs:
+                c.execute(
+                    text(
+                        "insert into code_ref(content_sha,name,line,kind) values (:h,:n,:l,:k) "
+                        "on conflict do nothing"
+                    ),
+                    {"h": target, "n": r.name, "l": r.line, "k": r.kind},
+                )
+            for module in imports:
+                c.execute(
+                    text(
+                        "insert into code_import(content_sha,module) values (:h,:m) "
+                        "on conflict do nothing"
+                    ),
+                    {"h": target, "m": module},
                 )
             pieces = []
             for s in symbols:

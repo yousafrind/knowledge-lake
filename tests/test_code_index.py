@@ -112,3 +112,61 @@ def test_lake_code_indexes_repo_respecting_gitignore(
             c.execute(text("select count(*) from location where path like '%.env'")).scalar_one()
             == 0
         )
+
+
+def test_references_and_imports() -> None:
+    from lake_code.symbols import extract_references
+
+    src = b"import os\nfrom a.b import c\n\ndef f(x):\n    y = helper(x)\n    return obj.save(y)\n"
+    refs, imports = extract_references("python", src)
+    by = {(r.name, r.kind) for r in refs}
+    assert ("helper", "call") in by and ("save", "call") in by and ("obj", "ref") in by
+    assert ("f", "ref") not in by  # a definition's own name is not a reference
+    assert imports == ["import os", "from a.b import c"]
+
+
+def test_code_tools(
+    db_url: str, store: ObjectStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    from lake_code import symbols  # noqa: F401
+    from lake_core.embedding import HashEmbedder
+    from lake_server import code_tools
+
+    upgrade_to_head(db_url)
+    for k, v in {
+        "DATABASE_URL": db_url,
+        "S3_ENDPOINT": store.s3.meta.endpoint_url,
+        "S3_KEY": "k",
+        "S3_SECRET": "s",
+        "S3_BUCKET": store.bucket,
+        "EMBEDDER": "hash",
+    }.items():
+        monkeypatch.setenv(f"LAKE_{k}", v)
+    repo = tmp_path / "proj"
+    (repo / "pkg").mkdir(parents=True)
+    (repo / "pkg" / "core.py").write_bytes(PY)
+    (repo / "pkg" / "cli.py").write_text(
+        "from pkg.core import helper\n\n\ndef main():\n    return helper(2)\n"
+    )
+    git(repo, "init", "-q")
+    git(repo, "-c", "user.email=a@b", "-c", "user.name=t", "add", ".")
+    git(repo, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "init")
+    main(["code", str(repo)])
+    main(["work"])
+    eng = create_engine(db_url)
+    found = json.loads(code_tools.find_symbol_json(eng, "save"))["symbols"]
+    assert found[0]["name"] == "Repo.save" and found[0]["path"] == "pkg/core.py"
+    refs = json.loads(code_tools.find_references_json(eng, "helper"))["references"]
+    assert {(r["path"], r["kind"]) for r in refs} == {("pkg/cli.py", "call"), ("pkg/cli.py", "ref")}
+    outline = json.loads(code_tools.file_outline_json(eng, "pkg/core.py", "proj"))["symbols"]
+    assert [s["name"] for s in outline] == ["Repo", "Repo.save", "helper"]
+    got = json.loads(code_tools.get_file_json(eng, store, "pkg/core.py", 13, 14))
+    assert got["text"].startswith("def helper") and got["total_lines"] == 14
+    rmap = json.loads(code_tools.repo_map_json(eng, "proj"))["files"]
+    assert rmap[0]["path"] == "proj/pkg/core.py" and rmap[0]["referenced_by_other_files"] >= 1
+    hits = json.loads(code_tools.code_search_json(eng, HashEmbedder(), "helper"))
+    assert hits["symbol_matches"][0]["name"] == "helper" and hits["results"]
+    with pytest.raises(ValueError):
+        code_tools.file_outline_json(eng, "nope.py")

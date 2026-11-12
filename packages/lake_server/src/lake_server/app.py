@@ -18,11 +18,14 @@ def build_app() -> Starlette:
     s = load_settings()
     engine = make_engine(s.database_url)
     embedder = make_embedder(s.embedder)
-    mcp_app = create_server(engine, embedder).streamable_http_app()
+    store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
+    rules = s.config_dir / "lakeignore.default"
+    mcp_app = create_server(
+        engine, embedder, rules.read_text() if rules.is_file() else "", store
+    ).streamable_http_app()
     routes: list = []  # type: ignore[type-arg]
     middleware: list = []  # type: ignore[type-arg]
     if s.gui_password:
-        store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
         routes, middleware = build_gui_routes(engine, embedder, store, s.gui_password, s.config_dir)
     routes.append(Mount("/", app=mcp_app))
     return Starlette(routes=routes, middleware=middleware, lifespan=mcp_app.router.lifespan_context)

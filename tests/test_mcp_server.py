@@ -53,6 +53,12 @@ def test_server_exposes_the_read_tools_over_mcp(lake) -> None:  # type: ignore[n
     assert (
         sorted(tools)
         == [
+            "code_file_outline",
+            "code_find_references",
+            "code_find_symbol",
+            "code_get_file",
+            "code_repo_map",
+            "code_search",
             "explain_path",
             "fetch",
             "get_document",

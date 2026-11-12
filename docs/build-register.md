@@ -440,3 +440,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_code_index.py`: Python symbols (signature, doc, lines, parents), JS/TS/Go/Rust/Java symbols, JS comment docs, and an end-to-end git repo test (gitignored file and `.env` never reach the lake; symbols, chunks and embeddings exist).
 
 **Not built yet.** Commit history and ownership; indexing only changed files of older copies; "repos duplicated across backups" logic; the full secret scan (W-027). Symbols for other languages (C/C++, Ruby, PHP...) need their tree-sitter grammar added to `DEFS`.
+
+---
+
+## W-025 SCIP references, repo map and code tools (Done, SCIP not integrated)
+
+**What.** Agents can ask code questions: where is X defined, who uses it, what is in this file, show me lines 10-40, give me a map of the repo.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| References and imports | `packages/lake_code/src/lake_code/symbols.py` → `extract_references()`, `Reference` | Every identifier that is not a definition's own name is recorded as a `call` or `ref` with its line, plus the import statements. **This is name matching, not precise**: two different functions called `save` are not told apart. |
+| Tables | `lake_core/migrations/versions/0006_code_refs.py` → `code_ref`, `code_import`, `code_repo_file.seen_at` | `seen_at` lets tools pick the newest indexed commit of each repo. |
+| Indexer | `CodeIndexProcessor` (version bumped to `2`) fills the new tables | |
+| Tools | `packages/lake_server/src/lake_server/code_tools.py` → `code_search_json`, `find_symbol_json`, `find_references_json`, `file_outline_json`, `get_file_json`, `repo_map_json`; registered in `mcp_tools.create_server()` as `code_search`, `code_find_symbol`, `code_find_references`, `code_file_outline`, `code_get_file`, `code_repo_map` | `find_symbol` accepts qualified names and tolerates near spellings (trigram similarity). `get_file` returns at most 400 lines per call. `repo_map` ranks files by how many *other* files reference their top-level symbols and trims to a character budget (an Aider-style map). `code_search` shows symbol-name matches first, then hybrid search restricted to code. Results say `precision: name match` where relevant. |
+
+**Checks.** `tests/test_code_index.py`: `test_references_and_imports`, `test_code_tools` (two-file repo through `lake code` and `lake work`).
+
+**Deliberately not done.** SCIP indexers (scip-python, scip-typescript, rust-analyzer): they need Node/language toolchains that are not available here. The plan's fallback (tree-sitter) is what runs. When you add SCIP, load its occurrences into `code_ref` with a new `kind` value and keep these tools unchanged. Scope `code:read` is documented but enforced only from W-032. Implementations and inheritance edges are not extracted.

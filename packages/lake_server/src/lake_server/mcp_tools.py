@@ -4,10 +4,13 @@ import json
 import re
 
 from lake_core.embedding import Embedder
+from lake_core.objectstore import ObjectStore
 from lake_ingest.explain import explain_path_json
 from lake_retrieval.search import Filters, search, slug
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy import Engine, text
+
+from lake_server import code_tools
 
 URI = re.compile(r"^lake://([0-9a-f]{64})#(\d+)/(.*)$")
 
@@ -190,7 +193,12 @@ def neighbors_json(engine: Engine, embedder: Embedder, ref: str, limit: int = 5)
     )
 
 
-def create_server(engine: Engine, embedder: Embedder, default_rules: str = "") -> MCPServer:
+def create_server(
+    engine: Engine,
+    embedder: Embedder,
+    default_rules: str = "",
+    store: ObjectStore | None = None,
+) -> MCPServer:
     server = MCPServer("knowledge-lake")
 
     @server.tool()
@@ -229,5 +237,39 @@ def create_server(engine: Engine, embedder: Embedder, default_rules: str = "") -
     def explain_path(path: str) -> str:
         """Admin: why a path was indexed, ignored or labelled (needs the admin scope)."""
         return explain_path_json(engine, path, default_rules)
+
+    @server.tool()
+    def code_search(query: str, repo: str | None = None) -> str:
+        """Search code: symbol-name matches first, then hybrid search over symbol chunks."""
+        return code_tools.code_search_json(engine, embedder, query, repo)
+
+    @server.tool()
+    def code_find_symbol(name: str, repo: str | None = None, kind: str | None = None) -> str:
+        """Where is a function/class/method defined? Name may be qualified (Repo.save)."""
+        return code_tools.find_symbol_json(engine, name, repo, kind)
+
+    @server.tool()
+    def code_find_references(name: str, repo: str | None = None) -> str:
+        """Places that mention a symbol (name match, not scope-aware)."""
+        return code_tools.find_references_json(engine, name, repo)
+
+    @server.tool()
+    def code_file_outline(path: str, repo: str | None = None) -> str:
+        """Symbols in a file with signatures and line ranges (path relative to the repo root)."""
+        return code_tools.file_outline_json(engine, path, repo)
+
+    @server.tool()
+    def code_get_file(
+        path: str, start_line: int = 1, end_line: int | None = None, repo: str | None = None
+    ) -> str:
+        """Read a file or a line range (at most 400 lines per call)."""
+        if store is None:
+            raise ValueError("object store not configured")
+        return code_tools.get_file_json(engine, store, path, start_line, end_line, repo)
+
+    @server.tool()
+    def code_repo_map(repo: str | None = None, max_chars: int = 6000) -> str:
+        """Orientation: files ranked by how much other code refers to them, with top-level defs."""
+        return code_tools.repo_map_json(engine, repo, max_chars)
 
     return server
