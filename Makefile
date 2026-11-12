@@ -1,4 +1,4 @@
-.PHONY: lint test up down check-stack
+.PHONY: lint test up down check-stack restore-drill
 
 lint:
 	uv run ruff check .
@@ -16,3 +16,7 @@ down:
 
 check-stack:
 	uv run python deploy/local/check_stack.py
+
+# usage: make restore-drill DUMP=path/to/lake.dump SCRATCH=postgresql+psycopg://user:pw@host/scratch_db
+restore-drill:
+	uv run lake restore-drill $(DUMP) $(SCRATCH)

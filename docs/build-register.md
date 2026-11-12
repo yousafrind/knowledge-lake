@@ -543,3 +543,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_research.py` (linked document arrives through the link, link graph reported, derived excluded by default and included on request); `tests/test_mcp_server.py` tool list.
 
 **Limits.** Synchronous, not a background job: the plan's "dossier saved back as a derived document" is not built. The caller gets the evidence and graph and can use `save_document` itself. The graph covers only the returned documents, one hop.
+
+---
+
+## W-031 Stage B: private host, backups, restore drill (Partial: drill tested, host not)
+
+**What.** A backup command, a restore drill that proves derived data can be rebuilt from the packages, and the Stage B host scripts and notes.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Backup | `packages/lake_cli/src/lake_cli/restore.py` → `backup()`, CLI `lake backup OUT` | One `pg_dump -Fc` of the whole database. The object store is mirrored separately. |
+| Restore drill | same file → `restore_drill()`, CLI `lake restore-drill DUMP SCRATCH_URL`, `make restore-drill` | Into an empty scratch database: run migrations, restore only the tables that cannot be rebuilt (`IRREPLACEABLE`: source, content, location, package, quarantine, label), keep only manual labels, fix the `source` id counter, queue a `chunk` job per canonical package and run the worker. Chunks, embeddings, links and groups come back from the packages in the object store. Then it compares row counts (`COUNTED`) with the live lake and exits 1 if they differ. |
+| Table-by-table restore | `restore_drill()` loop | `pg_dump` does not order data by foreign keys, so restoring all tables in one call failed on `location` before `source` existed. One call per table, parents first. |
+| Nightly script | `deploy/stage-b/backup.sh` | Dump, mirror the bucket to a second provider with `mc`, keep 14 dumps. |
+| Host notes | `deploy/stage-b/README.md` | Bind ports to the VPN/LAN address only, set the GUI password, cron the backup, run the drill monthly. |
+
+**Checks.** `tests/test_restore_drill.py::test_drill_rebuilds_derived_data_from_packages` (real Postgres + in-memory S3: chunk, embedding, edge and group-member counts match after the rebuild; the manual label survives; a new source id does not collide).
+
+**Limits.** Not run here: Docker/MinIO, `mc mirror`, cron, a real VPN host. Code-index tables (`code_*`) are not rebuilt by the drill; re-run `lake code` on the repos. Doc-group review decisions (accepted/rejected) are not restored, so groups come back as suggestions.

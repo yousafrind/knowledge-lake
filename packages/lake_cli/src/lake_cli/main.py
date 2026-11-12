@@ -103,6 +103,10 @@ def main(argv: list[str] | None = None) -> int:
     chats = sub.add_parser("chats", help="import chats from an export or transcripts")
     chats.add_argument("kind", choices=["claude", "chatgpt", "claude-code"])
     chats.add_argument("path")
+    sub.add_parser("backup", help="write a Postgres dump").add_argument("out")
+    drill = sub.add_parser("restore-drill", help="rebuild a scratch lake from a dump + packages")
+    drill.add_argument("dump")
+    drill.add_argument("scratch_url", help="URL of an empty, existing scratch database")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
@@ -114,6 +118,19 @@ def main(argv: list[str] | None = None) -> int:
         record_disk_root(make_engine(load_settings().database_url), str(Path(args.path).resolve()))
         print(add(args.path, disk))
         print(f"{len(disk.skipped)} paths skipped")
+    if args.cmd == "backup":
+        from lake_cli.restore import backup
+
+        print(backup(load_settings().database_url, Path(args.out)))
+    if args.cmd == "restore-drill":
+        from lake_cli.restore import restore_drill
+
+        s = load_settings()
+        store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
+        registry = build_registry(s.embedder, s.gpu_url, s.gpu_token, _rules_text(s.config_dir))
+        report = restore_drill(Path(args.dump), args.scratch_url, store, registry, s.database_url)
+        print(report)
+        return 0 if report["ok"] else 1
     if args.cmd == "explain":
         s = load_settings()
         rules = Path(s.config_dir) / "lakeignore.default"
