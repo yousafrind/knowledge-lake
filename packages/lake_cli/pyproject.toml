@@ -2,6 +2,10 @@
 name = "lake-cli"
 version = "0.0.0"
 requires-python = ">=3.12"
+dependencies = ["lake-core", "lake-ingest"]
+
+[project.scripts]
+lake = "lake_cli.main:main"
 
 [build-system]
 requires = ["hatchling"]

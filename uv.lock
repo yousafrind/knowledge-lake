@@ -835,6 +835,16 @@ dev = [
 name = "lake-cli"
 version = "0.0.0"
 source = { editable = "packages/lake_cli" }
+dependencies = [
+    { name = "lake-core" },
+    { name = "lake-ingest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "lake-core", editable = "packages/lake_core" },
+    { name = "lake-ingest", editable = "packages/lake_ingest" },
+]
 
 [[package]]
 name = "lake-code"

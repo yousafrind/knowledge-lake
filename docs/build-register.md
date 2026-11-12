@@ -134,3 +134,18 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_job_loop.py`: `test_two_workers_never_claim_the_same_job`, `test_crashed_workers_lease_expires_and_job_reruns`, `test_always_failing_processor_ends_dead`, `test_rerun_creates_no_duplicates`.
 
 **Not built.** The GPU branch (`cost: gpu` currently runs like any other job). `architecture.md` updated for the changed signature.
+
+---
+
+## W-008 Upload adapter and `lake add` (Done)
+
+**What.** The first way to put things in the lake: `lake add <file-or-folder>`.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Upload adapter | `packages/lake_ingest/src/lake_ingest/upload.py` → `UploadAdapter.scan()` | Walks a file or folder (sorted, so runs are repeatable) and yields `Item`s. `.md` and `.txt` files are handed over as markdown so they skip parsing. No ignore rules yet (W-020). |
+| CLI | `packages/lake_cli/src/lake_cli/main.py` → `add()`, `main()`; command `lake` declared in `packages/lake_cli/pyproject.toml` | Loads settings, builds the registrar, feeds it, prints counts such as `2 files, 0 new content, 0 new locations`. |
+
+**Checks.** `tests/test_cli_add.py`: `test_add_folder_twice_reports_no_new_content`, `test_add_single_file_end_to_end` (real Postgres with pgvector, moto S3).
+
+**Honest limit.** "Stage A stack" here means native Postgres + fake S3, since Docker is unavailable in this sandbox. Run `make up` on your machine and then `lake add` with the `LAKE_*` variables to confirm against MinIO.
