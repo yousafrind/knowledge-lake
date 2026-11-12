@@ -63,3 +63,22 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_core_settings_db.py`: `test_missing_required_settings_fail`, `test_env_overrides_toml`, `test_fresh_db_upgrades_to_head`, `test_only_lake_core_reads_environment` (greps all packages for `os.environ`/`getenv`; only `settings.py` may match).
 
 **Note.** Settings read a `config/lake.toml` file rather than the YAML files listed in the folder structure; those YAML files (`rules.yaml`, `sources.yaml`) are rules data and arrive with the classifier (W-021).
+
+---
+
+## W-004 lake_core: schema v1 (Done)
+
+**What.** The seven "spine" tables, the rules for building IDs, and the two JSON contracts (manifest and job).
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Tables | `lake_core/migrations/versions/0002_spine.py` (`SQL`): `source`, `content`, `location`, `package`, `chunk`, `embedding`, `job` | Follows the data model. `content` is keyed by file hash, so identical files are stored and processed once; `location` records every place a file was seen. |
+| One canonical package | unique partial index `one_canonical_package` on `package(content_sha256) WHERE canonical` | A document may have many revisions but only one is "current". The database enforces it, not application code. |
+| One job per work unit | `job` `UNIQUE (processor, version, target)` | Asking for the same work twice cannot create duplicates; this is what makes reruns safe. |
+| Search columns | `chunk.tsv` (generated tsvector + GIN index), `embedding.vec vector(384)` + HNSW index | Keyword and meaning search both live in Postgres. 384 dimensions is an assumption (small local model); changing the model means a new migration and re-embedding, which is allowed because derived data is rebuildable. |
+| ID rules | `lake_core/ids.py` → `content_sha256`, `location_id`, `package_id`, `chunk_id`, `job_id` | IDs come from content, so a rebuild produces the same IDs. `location_id` includes the content hash, so an edited file at the same path becomes a new row. |
+| Contracts | `schemas/manifest.schema.json`, `schemas/job.schema.json`; `lake_core/schemas.py` → `validate_manifest`, `validate_job` | Anything that writes a package or job is checked against a written contract. Schemas are found relative to the checkout (see the `ponytail:` comment). |
+
+**Checks.** `tests/test_core_schema.py`: `test_one_content_row_per_hash`, `test_one_canonical_package_per_content`, `test_one_job_per_processor_version_target`, `test_ids_are_stable`, `test_schemas`.
+
+**Not built.** Satellite tables (label, group, edge, symbol): later items add them as needed.

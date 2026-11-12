@@ -2,7 +2,7 @@
 name = "lake-core"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["sqlalchemy>=2", "psycopg[binary]>=3", "alembic", "pydantic-settings>=2", "boto3"]
+dependencies = ["sqlalchemy>=2", "psycopg[binary]>=3", "alembic", "pydantic-settings>=2", "boto3", "jsonschema"]
 
 [build-system]
 requires = ["hatchling"]

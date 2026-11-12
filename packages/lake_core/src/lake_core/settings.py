@@ -1,4 +1,5 @@
 """Typed settings. The only module in the repo that reads the environment."""
+
 from pathlib import Path
 
 from pydantic_settings import (

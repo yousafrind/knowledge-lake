@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Package manifest",
+  "type": "object",
+  "required": ["content_sha256", "rev", "source_type", "title", "parser", "files", "created_at"],
+  "properties": {
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rev": {"type": "integer", "minimum": 1},
+    "source_type": {"type": "string", "minLength": 1},
+    "title": {"type": "string"},
+    "tier": {"enum": ["original", "derived"]},
+    "parser": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"type": "string"}, "version": {"type": "string"}}
+    },
+    "files": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "assets": {"type": "integer", "minimum": 0},
+    "qa": {"type": "object"},
+    "created_at": {"type": "string"}
+  },
+  "additionalProperties": true
+}

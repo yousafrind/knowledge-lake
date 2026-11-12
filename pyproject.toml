@@ -21,7 +21,7 @@ lake-server = { workspace = true }
 lake-cli = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy", "import-linter", "psycopg[binary]", "boto3", "moto[server]"]
+dev = ["pytest", "ruff", "mypy", "import-linter", "psycopg[binary]", "boto3", "moto[server]", "types-jsonschema"]
 
 [tool.ruff]
 line-length = 100

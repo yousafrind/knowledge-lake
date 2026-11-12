@@ -1,4 +1,5 @@
 """Database engine, session factory and migrations."""
+
 from pathlib import Path
 
 from alembic import command

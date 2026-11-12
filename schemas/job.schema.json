@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Job",
+  "type": "object",
+  "required": ["processor", "version", "target", "status", "attempts"],
+  "properties": {
+    "processor": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "target": {"type": "string", "minLength": 1},
+    "status": {"enum": ["pending", "running", "done", "failed", "dead"]},
+    "attempts": {"type": "integer", "minimum": 0},
+    "run_after": {"type": "string"},
+    "lease_until": {"type": ["string", "null"]},
+    "error": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}
