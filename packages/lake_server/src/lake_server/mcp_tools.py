@@ -4,6 +4,7 @@ import json
 import re
 
 from lake_core.embedding import Embedder
+from lake_ingest.explain import explain_path_json
 from lake_retrieval.search import Filters, search, slug
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy import Engine, text
@@ -189,7 +190,7 @@ def neighbors_json(engine: Engine, embedder: Embedder, ref: str, limit: int = 5)
     )
 
 
-def create_server(engine: Engine, embedder: Embedder) -> MCPServer:
+def create_server(engine: Engine, embedder: Embedder, default_rules: str = "") -> MCPServer:
     server = MCPServer("knowledge-lake")
 
     @server.tool()
@@ -223,5 +224,10 @@ def create_server(engine: Engine, embedder: Embedder) -> MCPServer:
     def resolve_source(id: str) -> str:
         """Every place (source and path) where this content was found."""
         return resolve_source_json(engine, id)
+
+    @server.tool()
+    def explain_path(path: str) -> str:
+        """Admin: why a path was indexed, ignored or labelled (needs the admin scope)."""
+        return explain_path_json(engine, path, default_rules)
 
     return server

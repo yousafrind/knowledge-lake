@@ -375,10 +375,27 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 | Exact dedupe | already the registrar (W-006); `GroupProcessor` records an accepted `exact_duplicate` group when one content has several locations | One document in many places is parsed once; the group makes it visible. |
 | Type detection | `packages/lake_ingest/src/lake_ingest/types.py` → `detect_type()`, `sniff()` | Unambiguous signatures (PDF, PNG, JPEG, GIF) win over extensions; plain-text suffixes are trusted for text; everything else goes to Google's Magika model (runs offline on CPU). Used by the registrar. |
 | Label tables | `lake_core/migrations/versions/0004_labels_groups.py` → `label`, `doc_group`, `doc_group_member` | A label is `(file, key, value, source, confidence)`; sources are `manual`, `rule`, `folder`, `content`. Groups are computed rows with a status (`suggested`/`accepted`/`rejected`) for the review screen. |
-| Classification | `packages/lake_processors/src/lake_processors/classify.py` → `ClassifyProcessor`, `load_rules()`, `effective_labels()`; rules in `config/rules.yaml` | Adds the detected type (content), the parent folder name (folder, low confidence) and any matching path rule. `effective_labels()` picks per key by precedence manual > rule > folder > content. The upsert never overwrites a `manual` row. The processor version includes a hash of the rules, so editing `rules.yaml` re-runs classification. |
+| Classification | `packages/lake_processors/src/lake_processors/classify.py` → `ClassifyProcessor`, `load_rules()`, `effective_labels()`; rules in `config/rules.yaml` | Adds the detected type (content), the parent folder name (folder, low confidence) and any matching path rule. `effective_labels()` (now in `lake_core/labels.py`, re-exported by `classify.py`) picks per key by precedence manual > rule > folder > content. The upsert never overwrites a `manual` row. The processor version includes a hash of the rules, so editing `rules.yaml` re-runs classification. |
 | Grouping | `lake_processors/group.py` → `GroupProcessor`, `family_key()` | **Version families:** same folder, same file name after removing words like `v2`, `final`, `copy`, `(2)`, dates. **Near-duplicates:** documents whose average vectors are within cosine distance 0.1. Both are *suggestions*. Queued after embedding. |
 | Wiring | `ChunkProcessor` queues `classify`; `EmbedProcessor` queues `group`; `lake_cli.build_registry(..., rules_yaml)` | |
 
 **Checks.** `tests/test_classify_group.py`: `test_type_detection_trusts_content_for_binaries`, `test_family_key_ignores_version_words`, `test_labels_follow_rules_and_manual_wins` (manual survives a rerun), `test_groups_exact_duplicates_families_and_near_duplicates`.
 
 **Not built from Req 6 (be aware):** perceptual-hash image duplicates, EXIF/metadata extraction, project bundles, photo events, topic clusters, backup lineages, partial-hash dedupe before reading (the walker reads whole files), repo-root routing to the code indexer. Near-duplicate quality depends on the real embedder; the 0.1 threshold was tested only with the hash embedder. Label and group filters in `query` are not wired yet (use `effective_labels()` / SQL).
+
+---
+
+## W-022 explain_path tool (Done)
+
+**What.** Answers "why wasn't this indexed?" or "why is it labelled this way?", from the command line and over MCP.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Logic | `packages/lake_ingest/src/lake_ingest/explain.py` → `explain_path_json()` (lives in `lake_ingest` so both the server and the CLI can use it without importing each other) | Looks the path up in the catalog (indexed? type? effective labels), and for paths under a known disk root re-runs the walker's rules (`DiskAdapter.decide`) to give the exact rule that ignored it, such as `default rules: .venv/`. Unknown paths say so instead of guessing. |
+| Disk roots | `record_disk_root()`, `disk_roots()` (stored in `source.config.roots` for source `disk`) | The ignore rules depend on which folder was walked, so `lake disk` remembers its roots. |
+| MCP tool | `mcp_tools.py` → `explain_path(path)` | Marked admin-only; **scope enforcement arrives in W-032**, so until then do not expose the server beyond localhost. |
+| CLI | `lake_cli/main.py` → `lake explain <path>` | Prints the same JSON. |
+
+**Checks.** `tests/test_explain_path.py`: `test_explain_indexed_and_ignored_paths`, `test_cli_explain_prints_json`; tool list test updated (seven tools).
+
+**Limit.** Per-subtree skip rows and the "largest ignored subtrees" report from the plan are not stored (skips are recomputed on demand).

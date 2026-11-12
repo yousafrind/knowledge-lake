@@ -51,7 +51,16 @@ def test_server_exposes_the_read_tools_over_mcp(lake) -> None:  # type: ignore[n
 
     tools, body = asyncio.run(go())
     assert (
-        sorted(tools) == ["fetch", "get_document", "neighbors", "query", "resolve_source", "search"]
+        sorted(tools)
+        == [
+            "explain_path",
+            "fetch",
+            "get_document",
+            "neighbors",
+            "query",
+            "resolve_source",
+            "search",
+        ]
         and "results" in body
     )
 

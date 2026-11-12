@@ -10,6 +10,7 @@ from lake_core.settings import load_settings
 from lake_ingest.adapter import Adapter
 from lake_ingest.crawl import CrawlAdapter
 from lake_ingest.disk import DiskAdapter
+from lake_ingest.explain import explain_path_json, record_disk_root
 from lake_ingest.registrar import Registrar
 from lake_ingest.upload import UploadAdapter
 from lake_processors.contract import Registry
@@ -93,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("add", help="add a file or folder").add_argument("path")
     sub.add_parser("crawl", help="crawl a website section").add_argument("url")
     sub.add_parser("disk", help="walk a folder tree with ignore rules").add_argument("path")
+    sub.add_parser("explain", help="why was this path indexed or ignored").add_argument("path")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
@@ -101,8 +103,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "disk":
         rules = Path(load_settings().config_dir) / "lakeignore.default"
         disk = DiskAdapter(rules.read_text() if rules.is_file() else "")
+        record_disk_root(make_engine(load_settings().database_url), str(Path(args.path).resolve()))
         print(add(args.path, disk))
         print(f"{len(disk.skipped)} paths skipped")
+    if args.cmd == "explain":
+        s = load_settings()
+        rules = Path(s.config_dir) / "lakeignore.default"
+        print(
+            explain_path_json(
+                make_engine(s.database_url), args.path, rules.read_text() if rules.is_file() else ""
+            )
+        )
     if args.cmd == "crawl":
         print(add(args.url, CrawlAdapter()))
     if args.cmd == "work":

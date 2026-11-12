@@ -7,11 +7,10 @@ from typing import Any
 
 import pathspec
 import yaml
+from lake_core.labels import effective_labels  # noqa: F401  (re-exported)
 from sqlalchemy import text
 
 from lake_processors.contract import Context
-
-PRECEDENCE = ["manual", "rule", "folder", "content"]
 
 
 @dataclass(frozen=True)
@@ -69,14 +68,3 @@ class ClassifyProcessor:
                     ),
                     {"h": sha, "k": key, "v": value, "s": source, "c": conf},
                 )
-
-
-def effective_labels(c: Any, sha: str) -> dict[str, str]:
-    """Winning value per key by source precedence (manual first)."""
-    rows = c.execute(text("select key, value, source from label where content_sha=:h"), {"h": sha})
-    best: dict[str, tuple[int, str]] = {}
-    for key, value, source in rows:
-        rank = PRECEDENCE.index(source)
-        if key not in best or rank < best[key][0]:
-            best[key] = (rank, value)
-    return {k: v for k, (_, v) in best.items()}
