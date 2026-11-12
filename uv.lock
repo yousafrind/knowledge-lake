@@ -868,6 +868,12 @@ requires-dist = [
 name = "lake-ingest"
 version = "0.0.0"
 source = { editable = "packages/lake_ingest" }
+dependencies = [
+    { name = "lake-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "lake-core", editable = "packages/lake_core" }]
 
 [[package]]
 name = "lake-parsers"

@@ -99,3 +99,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_core_objectstore.py`: `test_round_trip_byte_for_byte`, `test_existing_rev_rejected_new_rev_ok`, `test_bad_manifest_rejected_and_nothing_written` (runs against in-process moto S3).
 
 **Known limit.** The "does this rev exist" check and the write are two steps, fine with one writer (see the `ponytail:` comment in `write_package`).
+
+---
+
+## W-006 Registrar (Done)
+
+**What.** The single doorway for new files. Every source type ends here, so duplicate detection and first-job creation exist once.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Item and adapter shape | `packages/lake_ingest/src/lake_ingest/adapter.py` → `Item`, `Adapter` | An adapter only finds files and hands over bytes, a path, and a source name. It never touches the database. |
+| Registrar | `lake_ingest/registrar.py` → `Registrar.register()` returns `Result(content_sha256, new_content, new_location)` | One transaction: record source, content, location. Inserts use `ON CONFLICT DO NOTHING`, so the same bytes at two paths give one content row and two location rows, and the same path twice changes nothing. |
+| New content only | inside `register()` | Original bytes are stored and the first job is enqueued only when the content is new, so re-adding a folder does no repeat work. |
+| Type detection | `detect_type()`, `SUFFIX_TYPES` | Cheap guess from the file suffix, unless the adapter gave a hint. Smarter detection arrives with W-021. |
+| Markdown shortcut | `Registrar._write_markdown_package()` | If the adapter already has markdown (a note, a chat), the package is written immediately and the first job is `chunk`. Binary files (PDF etc.) get a `parse` job instead and the parse processor writes their package (resolves the open question in the build-order doc). |
+| Job creation | `Registrar._enqueue()` | Job id comes from processor + version + target, so enqueueing twice is a no-op. |
+
+**Checks.** `tests/test_registrar.py`: `test_same_bytes_two_paths_and_same_path_twice`, `test_markdown_item_gets_package_and_chunk_job`. Test helpers in `tests/conftest.py` (`db_url`, `store`).
