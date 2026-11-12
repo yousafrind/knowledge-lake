@@ -1,0 +1,15 @@
+# Stage C edge: the MCP path only, from claude.ai's published range, over HTTPS.
+# Everything else (GUI, admin, CLI) is answered 404 here and is never forwarded.
+# Add the ChatGPT/Codex ranges to @allowed once confirmed; they were not checked when this was written.
+lake.example.com {
+	@allowed remote_ip 160.79.104.0/21
+	@mcp path /mcp /mcp/* /.well-known/oauth-protected-resource*
+
+	handle @mcp {
+		handle @allowed {
+			reverse_proxy api:8000
+		}
+		respond 403
+	}
+	respond 404
+}

@@ -1,7 +1,10 @@
 """MCP tools. `search` and `fetch` take one string argument each (the shape ChatGPT needs)."""
 
+import functools
 import json
 import re
+from collections.abc import Callable
+from typing import Any
 
 from lake_core.embedding import Embedder
 from lake_core.objectstore import ObjectStore
@@ -9,6 +12,7 @@ from lake_ingest.explain import explain_path_json
 from lake_ingest.registrar import Registrar
 from lake_retrieval.research import research_json
 from lake_retrieval.search import Filters, search, slug
+from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy import Engine, text
 
@@ -200,8 +204,26 @@ def create_server(
     embedder: Embedder,
     default_rules: str = "",
     store: ObjectStore | None = None,
+    enforce_scopes: bool = False,
+    **auth: Any,
 ) -> MCPServer:
-    server = MCPServer("knowledge-lake")
+    server = MCPServer("knowledge-lake", **auth)
+
+    def needs(scope: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
+        """Tool decorator: with enforcement on, the caller's token must carry `scope`."""
+
+        def deco(fn: Callable[..., str]) -> Callable[..., str]:
+            @functools.wraps(fn)
+            def inner(*a: Any, **k: Any) -> str:
+                if enforce_scopes:
+                    tok = get_access_token()
+                    if tok is None or scope not in tok.scopes:
+                        raise PermissionError(f"missing scope: {scope}")
+                return fn(*a, **k)
+
+            return inner
+
+        return deco
 
     def _registrar() -> Registrar:
         if store is None:
@@ -209,16 +231,19 @@ def create_server(
         return Registrar(engine, store)
 
     @server.tool()
+    @needs("read")
     def search(query: str) -> str:  # noqa: F811
         """Search the lake. Returns ranked passages with citation URIs (evidence, not answers)."""
         return search_json(engine, embedder, query)
 
     @server.tool()
+    @needs("read")
     def fetch(id: str) -> str:
         """Fetch the full text for a citation URI returned by search."""
         return fetch_json(engine, id)
 
     @server.tool()
+    @needs("read")
     def query(
         query: str, source_type: str | None = None, tier: str | None = None, limit: int = 10
     ) -> str:
@@ -226,51 +251,61 @@ def create_server(
         return query_json(engine, embedder, query, source_type, tier, limit)
 
     @server.tool()
+    @needs("read")
     def research(topic: str, limit: int = 10, include_derived: bool = False) -> str:
         """Evidence and link graph for a topic (originals only unless include_derived)."""
         return research_json(engine, embedder, topic, limit, include_derived)
 
     @server.tool()
+    @needs("read")
     def get_document(id: str) -> str:
         """Manifest, outline and revisions for a document (content hash or lake:// URI)."""
         return get_document_json(engine, id)
 
     @server.tool()
+    @needs("read")
     def neighbors(id: str, limit: int = 5) -> str:
         """Documents linked to, linked from, or similar to this one."""
         return neighbors_json(engine, embedder, id, limit)
 
     @server.tool()
+    @needs("read")
     def resolve_source(id: str) -> str:
         """Every place (source and path) where this content was found."""
         return resolve_source_json(engine, id)
 
     @server.tool()
+    @needs("admin")
     def explain_path(path: str) -> str:
         """Admin: why a path was indexed, ignored or labelled (needs the admin scope)."""
         return explain_path_json(engine, path, default_rules)
 
     @server.tool()
+    @needs("code:read")
     def code_search(query: str, repo: str | None = None) -> str:
         """Search code: symbol-name matches first, then hybrid search over symbol chunks."""
         return code_tools.code_search_json(engine, embedder, query, repo)
 
     @server.tool()
+    @needs("code:read")
     def code_find_symbol(name: str, repo: str | None = None, kind: str | None = None) -> str:
         """Where is a function/class/method defined? Name may be qualified (Repo.save)."""
         return code_tools.find_symbol_json(engine, name, repo, kind)
 
     @server.tool()
+    @needs("code:read")
     def code_find_references(name: str, repo: str | None = None) -> str:
         """Places that mention a symbol (name match, not scope-aware)."""
         return code_tools.find_references_json(engine, name, repo)
 
     @server.tool()
+    @needs("code:read")
     def code_file_outline(path: str, repo: str | None = None) -> str:
         """Symbols in a file with signatures and line ranges (path relative to the repo root)."""
         return code_tools.file_outline_json(engine, path, repo)
 
     @server.tool()
+    @needs("code:read")
     def code_get_file(
         path: str, start_line: int = 1, end_line: int | None = None, repo: str | None = None
     ) -> str:
@@ -280,11 +315,13 @@ def create_server(
         return code_tools.get_file_json(engine, store, path, start_line, end_line, repo)
 
     @server.tool()
+    @needs("code:read")
     def code_repo_map(repo: str | None = None, max_chars: int = 6000) -> str:
         """Orientation: files ranked by how much other code refers to them, with top-level defs."""
         return code_tools.repo_map_json(engine, repo, max_chars)
 
     @server.tool()
+    @needs("code:read")
     def code_dependency_docs(repo: str | None = None) -> str:
         """Dependencies from the repo's manifests, each with matching documentation in the lake."""
         if store is None:
@@ -292,6 +329,7 @@ def create_server(
         return code_tools.dependency_docs_json(engine, store, repo)
 
     @server.tool()
+    @needs("write")
     def save_document(
         title: str, content: str, tags: list[str] | None = None, project: str | None = None
     ) -> str:
@@ -299,6 +337,7 @@ def create_server(
         return write_tools.save_document_json(engine, _registrar(), title, content, tags, project)
 
     @server.tool()
+    @needs("write")
     def save_conversation(
         title: str,
         messages: list[dict[str, str]],

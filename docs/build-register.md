@@ -561,3 +561,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_restore_drill.py::test_drill_rebuilds_derived_data_from_packages` (real Postgres + in-memory S3: chunk, embedding, edge and group-member counts match after the rebuild; the manual label survives; a new source id does not collide).
 
 **Limits.** Not run here: Docker/MinIO, `mc mirror`, cron, a real VPN host. Code-index tables (`code_*`) are not rebuilt by the drill; re-run `lake code` on the repos. Doc-group review decisions (accepted/rejected) are not restored, so groups come back as suggestions.
+
+---
+
+## W-032 Stage C: edge, auth, rate limits (Partial: scopes, tokens, limits built; OAuth server and edge untested)
+
+**What.** Every MCP tool now needs one scope; callers present a bearer token whose scopes are checked; requests are rate-limited; and the edge config forwards only the MCP path. A full OAuth authorization server is deferred (ADR 0003).
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Scope per tool | `lake_server/mcp_tools.py` → `create_server(enforce_scopes=...)`, inner `needs(scope)` decorator | `search`, `fetch`, `query`, `research`, `get_document`, `neighbors`, `resolve_source` need `read`; `code_*` need `code:read`; `save_*` need `write`; `explain_path` needs `admin`. Off by default (stage A, local); on when auth is configured. A call with no token or the wrong scope raises `PermissionError`. |
+| Tokens | `lake_core/tokens.py` (`new_token`, `hash_token`), `lake_server/auth.py` (`FileTokenVerifier`, `load_auth`), CLI `lake token NAME SCOPES...` | A token is random and shown once; only its SHA-256 goes into `config/tokens.toml`, next to its scopes. The file also holds `public_url` and `[limits] per_minute`. `new_token` lives in `lake_core` because `lake_cli` and `lake_server` may not import each other. |
+| Turning it on | `lake_server/app.py` → `build_app()` | If `config/tokens.toml` exists: scopes enforced, the SDK answers 401 without a valid bearer token, and the rate-limit middleware is added. No file = stage A behaviour. |
+| Rate limit | `lake_server/ratelimit.py` → `RateLimit` | Counts requests per token (per client address if none) per minute; over the limit gets 429. Per process. |
+| Edge | `deploy/stage-c/Caddyfile`, `deploy/stage-c/README.md` | Passes only `/mcp` and the OAuth metadata path, only from claude.ai's `160.79.104.0/21`; everything else 404. GUI, admin tools and CLI are never forwarded. |
+
+**Checks.** `tests/test_auth.py`: verifier, each tool's scope (read-only token denied code/admin tools, no token denied), open when enforcement is off, HTTP 401 without/with a wrong token and not-401 with a valid one, rate limit per token, and `build_app` wiring from `tokens.toml`.
+
+**Limits.** No OAuth authorization server, so claude.ai and ChatGPT web connectors cannot connect yet; Claude Code and Codex with a configured bearer token can. Caddy, DNS, TLS and the IP ranges are untested here; ChatGPT/Codex ranges were not looked up. `photos:read` is a recognised scope but nothing checks it yet (no photo tools exist). Rate limit counters are in memory.

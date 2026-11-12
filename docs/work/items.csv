@@ -30,6 +30,6 @@ W-028,GUI code browser and chats,P3,"W-015, W-025, W-027",lake_server,"arch:web-
 W-029,LightRAG pilot behind the eval gate,P4,"W-014, W-017",lake_processors,plan:req-2,5,Partial
 W-030,Knowledge broker: research tool,P4,"W-017, W-019","lake_retrieval, lake_server","plan:req-2, plan:req-3",4,Done
 W-031,"Stage B: private host, backups, restore drill",P5,W-002,deploy/stage-b,"arch:deployment, arch:network",3,Partial
-W-032,"Stage C: edge, OAuth, rate limits",P5,"W-013, W-031","deploy/stage-c, lake_server","arch:network, arch:system-map",3,Not started
+W-032,"Stage C: edge, OAuth, rate limits",P5,"W-013, W-031","deploy/stage-c, lake_server","arch:network, arch:system-map",3,Partial
 W-033,Client contract tests,P5,W-032,tests,"arch:tests, plan:req-3",3,Not started
 W-034,Observability views and licence check,P5,W-007,"lake_core, lake_processors","arch:cross-cutting, arch:tests",2,Not started

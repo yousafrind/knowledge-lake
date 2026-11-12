@@ -246,7 +246,7 @@ Filters run before search, so scope, trust tier and source type cut the candidat
 
 ## MCP tools and scopes
 
-The server speaks remote Streamable HTTP with OAuth. Each tool needs one scope, and every read tool returns evidence with citations.
+The server speaks remote Streamable HTTP. Stages B and C check bearer tokens and scopes; full OAuth (needed by claude.ai and ChatGPT web) is deferred, see ADR 0003. Each tool needs one scope, and every read tool returns evidence with citations.
 
 | Tool | Does | Scope |
 | --- | --- | --- |

@@ -1,6 +1,7 @@
 """Operator commands. Usage: lake add <path>"""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -107,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     drill = sub.add_parser("restore-drill", help="rebuild a scratch lake from a dump + packages")
     drill.add_argument("dump")
     drill.add_argument("scratch_url", help="URL of an empty, existing scratch database")
+    tok = sub.add_parser("token", help="make an API token and print its tokens.toml entry")
+    tok.add_argument("name")
+    tok.add_argument("scopes", nargs="+")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
@@ -118,6 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         record_disk_root(make_engine(load_settings().database_url), str(Path(args.path).resolve()))
         print(add(args.path, disk))
         print(f"{len(disk.skipped)} paths skipped")
+    if args.cmd == "token":
+        from lake_core.tokens import new_token
+
+        token, digest = new_token()
+        print(f"token (shown once): {token}")
+        print(f'[tokens.{args.name}]\nsha256 = "{digest}"\nscopes = {json.dumps(args.scopes)}')
     if args.cmd == "backup":
         from lake_cli.restore import backup
 
