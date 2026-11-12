@@ -3,6 +3,16 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: lake
+          POSTGRES_PASSWORD: lake
+          POSTGRES_DB: lake
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lake" --health-interval 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

@@ -28,3 +28,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 - `test_upward_import_fails` runs it on a deliberately broken sample (`tests/fixtures/badpkg/{high,low}.py`, config `tests/fixtures/bad.ini`) and expects failure. This proves the rule can actually catch a violation, so a green result means something. Ruff skips `tests/fixtures`, since the bad import is on purpose.
 
 **Not built (on purpose).** No database, no code inside the packages yet. That starts at W-002/W-003.
+
+---
+
+## W-002 Local stack: Postgres with pgvector, object store (Done)
+
+**What.** The two stores the lake needs, runnable on one machine, plus a script that proves both are reachable and usable.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Stack definition | `compose.yaml` (services `postgres` = `pgvector/pgvector:pg16`, `minio`) | One file starts both stores. Ports bind to `127.0.0.1` only, so nothing is exposed. Data goes under `LAKE_DATA_DIR` (default `./.data`, git-ignored area) so it is easy to move or back up. |
+| Start / stop | `Makefile` targets `up`, `down`, `check-stack` | `make up` waits until Postgres is healthy. |
+| Proof script | `deploy/local/check_stack.py` → `main()` | Enables the `vector` extension, checks it is on, creates the bucket if missing. Idempotent, so safe to re-run. |
+| CI database | `.github/workflows/ci.yml` → `services.postgres` | Tests need a real Postgres with pgvector; mocks would not catch SQL mistakes. |
+| Dev deps | `pyproject.toml` → `dev` group: `psycopg[binary]`, `boto3`, `moto[server]` | psycopg talks to Postgres, boto3 to any S3 store, moto fakes S3 in tests. |
+
+**Check.** `tests/test_stack.py::test_check_stack_script` runs the script against a real Postgres (URL from `LAKE_DATABASE_URL`, default `postgresql://lake:lake@localhost:5432/lake`) and an in-process fake S3 (moto), and expects the success line.
+
+**Honest limits.** This sandbox has no Docker daemon, so `compose.yaml` and `make up` were written but not run here; the script and the Postgres+pgvector side were verified against a native Postgres 16 install, and the S3 side only against moto, not real MinIO. Run `make up && make check-stack` once on your machine to confirm.

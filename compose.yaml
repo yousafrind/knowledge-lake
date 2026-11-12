@@ -1,0 +1,23 @@
+# Local stack (stage A): Postgres with pgvector, and an S3-compatible store.
+# Data lives under LAKE_DATA_DIR (default ./.data). api and worker containers come later.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: lake
+      POSTGRES_PASSWORD: ${LAKE_PG_PASSWORD:-lake}
+      POSTGRES_DB: lake
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["${LAKE_DATA_DIR:-./.data}/pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lake"]
+      interval: 3s
+      retries: 20
+  minio:
+    image: minio/minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${LAKE_S3_KEY:-lakeadmin}
+      MINIO_ROOT_PASSWORD: ${LAKE_S3_SECRET:-lakeadmin-secret}
+    ports: ["127.0.0.1:9000:9000"]
+    volumes: ["${LAKE_DATA_DIR:-./.data}/minio:/data"]

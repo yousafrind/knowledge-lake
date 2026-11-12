@@ -1,4 +1,4 @@
-.PHONY: lint test
+.PHONY: lint test up down check-stack
 
 lint:
 	uv run ruff check .
@@ -7,3 +7,12 @@ lint:
 
 test: lint
 	uv run pytest
+
+up:
+	docker compose up -d --wait
+
+down:
+	docker compose down
+
+check-stack:
+	uv run python deploy/local/check_stack.py
