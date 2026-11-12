@@ -149,3 +149,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_cli_add.py`: `test_add_folder_twice_reports_no_new_content`, `test_add_single_file_end_to_end` (real Postgres with pgvector, moto S3).
 
 **Honest limit.** "Stage A stack" here means native Postgres + fake S3, since Docker is unavailable in this sandbox. Run `make up` on your machine and then `lake add` with the `LAKE_*` variables to confirm against MinIO.
+
+---
+
+## W-009 Docling parse processor (Done, with a gap)
+
+**What.** The step that turns an uploaded PDF (or other binary) into a markdown package and queues chunking.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Parser interface | `packages/lake_parsers/src/lake_parsers/base.py` → `Parser`, `Parsed` | Every parser (Docling now, MinerU later) returns the same thing: markdown, structure, assets, QA info. Swapping a parser never touches the rest. |
+| Docling backend | `lake_parsers/docling_backend.py` → `DoclingParser.parse()` | Default parser. Imported only when used because it is heavy. Optional install: `lake-parsers[docling]`. |
+| Plain fallback | `lake_parsers/plain.py` → `PlainTextParser` | Reads text as is. Used as the fallback and as the test stand-in. |
+| Parse step | `packages/lake_processors/src/lake_processors/parse.py` → `ParseProcessor.run()` | Loads the original, picks a parser by source type, writes package rev 1 (`content.md`, `structure.json`, assets, manifest), inserts the canonical package row, queues a `chunk` job. If a package already exists it only re-queues chunking, so reruns add nothing. |
+| Shared job helper | `packages/lake_core/src/lake_core/jobs.py` → `enqueue_job()` | Moved down from the registrar so both packages share it (layer rule). |
+
+**Checks.** `tests/test_parse_processor.py::test_parse_writes_package_and_queues_chunk` (with the plain parser). `tests/test_docling_smoke.py` runs real Docling on `tests/fixtures_data/sample.pdf`.
+
+**Gap, honestly.** In this sandbox Docling installs but cannot download its model weights (Hugging Face is blocked), so the smoke test **skips here** and the Docling backend has not been run end to end. Run `uv sync --extra docling` (or `pip install docling`) on your machine and `uv run pytest tests/test_docling_smoke.py` to confirm; if the output shape differs, fix `DoclingParser.parse()` only.

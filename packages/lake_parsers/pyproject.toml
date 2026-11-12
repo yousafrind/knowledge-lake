@@ -2,6 +2,10 @@
 name = "lake-parsers"
 version = "0.0.0"
 requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+docling = ["docling"]
 
 [build-system]
 requires = ["hatchling"]

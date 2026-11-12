@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
 from lake_core import ids
+from lake_core.jobs import enqueue_job
 from lake_core.objectstore import ObjectStore, put_original, write_package
 from sqlalchemy import Engine, text
 
@@ -80,7 +81,7 @@ class Registrar:
                 put_original(self.store, sha, item.data)
                 if item.markdown is not None:
                     self._write_markdown_package(c, item, sha, stype)
-                self._enqueue(c, "chunk" if item.markdown is not None else "parse", sha)
+                enqueue_job(c, "chunk" if item.markdown is not None else "parse", sha)
         return Result(sha, new_content, new_location)
 
     def _write_markdown_package(self, c, item: Item, sha: str, stype: str) -> None:  # type: ignore[no-untyped-def]
@@ -102,18 +103,4 @@ class Registrar:
                 "values (:id,:h,1,true,cast(:m as jsonb))"
             ),
             {"id": ids.package_id(sha, 1), "h": sha, "m": json.dumps(manifest)},
-        )
-
-    def _enqueue(self, c, processor: str, target: str, version: str = "1") -> None:  # type: ignore[no-untyped-def]
-        c.execute(
-            text(
-                "insert into job(id,processor,version,target) values (:id,:p,:v,:t) "
-                "on conflict do nothing"
-            ),
-            {
-                "id": ids.job_id(processor, version, target),
-                "p": processor,
-                "v": version,
-                "t": target,
-            },
         )
