@@ -65,6 +65,7 @@ def test_server_exposes_the_read_tools_over_mcp(lake) -> None:  # type: ignore[n
             "get_document",
             "neighbors",
             "query",
+            "research",
             "resolve_source",
             "save_conversation",
             "save_document",

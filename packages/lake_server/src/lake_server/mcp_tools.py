@@ -7,6 +7,7 @@ from lake_core.embedding import Embedder
 from lake_core.objectstore import ObjectStore
 from lake_ingest.explain import explain_path_json
 from lake_ingest.registrar import Registrar
+from lake_retrieval.research import research_json
 from lake_retrieval.search import Filters, search, slug
 from mcp.server.mcpserver import MCPServer
 from sqlalchemy import Engine, text
@@ -223,6 +224,11 @@ def create_server(
     ) -> str:
         """Filtered search. source_type e.g. pdf/markdown/html; tier is original or derived."""
         return query_json(engine, embedder, query, source_type, tier, limit)
+
+    @server.tool()
+    def research(topic: str, limit: int = 10, include_derived: bool = False) -> str:
+        """Evidence and link graph for a topic (originals only unless include_derived)."""
+        return research_json(engine, embedder, topic, limit, include_derived)
 
     @server.tool()
     def get_document(id: str) -> str:

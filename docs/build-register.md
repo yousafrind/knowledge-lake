@@ -527,3 +527,19 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_eval_runner.py`: `test_gate_requires_a_real_improvement`, `test_link_expansion_adds_linked_document`.
 
 **To finish the real pilot** (on your machine, with an LLM key and your documents): wrap LightRAG with the retriever signature, run both retrievers with the real embedder on a golden set built from your documents, and ask `verdict()`. The 8-question fixture set is too small to decide anything.
+
+---
+
+## W-030 Knowledge broker: `research` tool
+
+**What.** An MCP tool `research(topic, limit=10, include_derived=false)` that returns an evidence set for a topic and the links between the documents it touches. No LLM involved.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Research function | `packages/lake_retrieval/src/lake_retrieval/research.py` → `research_json()` | Runs `search_with_links` (W-029) so linked documents join the evidence, then looks up which of the returned documents link to each other. Output: `documents`, `evidence` (passage, citation URI, `via` = search or link, score), `links` (src → dst). |
+| Originals only | same function, `Filters(tiers=["original"])` | Chats and saved model output are tier "derived". Leaving them out by default stops the lake citing its own earlier answers as evidence; `include_derived=true` opts back in. |
+| MCP tool | `packages/lake_server/src/lake_server/mcp_tools.py` → `research` | `read` scope, same as search. |
+
+**Checks.** `tests/test_research.py` (linked document arrives through the link, link graph reported, derived excluded by default and included on request); `tests/test_mcp_server.py` tool list.
+
+**Limits.** Synchronous, not a background job: the plan's "dossier saved back as a derived document" is not built. The caller gets the evidence and graph and can use `save_document` itself. The graph covers only the returned documents, one hop.
