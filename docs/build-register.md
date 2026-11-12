@@ -457,3 +457,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_code_index.py`: `test_references_and_imports`, `test_code_tools` (two-file repo through `lake code` and `lake work`).
 
 **Deliberately not done.** SCIP indexers (scip-python, scip-typescript, rust-analyzer): they need Node/language toolchains that are not available here. The plan's fallback (tree-sitter) is what runs. When you add SCIP, load its occurrences into `code_ref` with a new `kind` value and keep these tools unchanged. Scope `code:read` is documented but enforced only from W-032. Implementations and inheritance edges are not extracted.
+
+---
+
+## W-026 Docs bridge (Done)
+
+**What.** "How do I use the library this code imports?" Each dependency a repo declares is matched with documentation already in the lake, so an agent can go from code to docs in one call.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Manifest reader | `packages/lake_code/src/lake_code/manifests.py` → `parse_manifest()`, `Dependency`, `search_terms()` | Reads `pyproject.toml` (dependencies, dependency groups, optional extras), `requirements.txt`, `package.json`, `Cargo.toml`, `go.mod`. Names are turned into search words (scope and path prefixes dropped: `@scope/lib` → `lib`, `github.com/gin-gonic/gin` → `gin`). |
+| Matching | `packages/lake_server/src/lake_server/code_tools.py` → `dependency_docs_json()` | For each dependency, finds non-code documents whose **title** or **URL/path** contains the name as a whole word. Title matches rank above path matches; up to 3 per dependency; dependencies with no docs show an empty list (a hint of what to crawl next). Computed on demand, nothing stored. |
+| Tool | `code_dependency_docs(repo)` in `mcp_tools.py` | Scope `code:read`. |
+| Manifests as documents | `CodeAdapter` marks them `source_type="manifest"` | They are stored and searchable but excluded from doc matching. |
+
+**Checks.** `tests/test_code_index.py`: `test_manifest_parsing`, `test_dependency_docs_link_to_crawled_documentation`.
+
+**Limits.** Matching is by name only (no package-registry lookup of the official docs URL), so very short or generic names (`click`, `rich`) can match unrelated pages. Lockfiles (resolved versions) are not read. Docs are not version-matched to the pinned version.

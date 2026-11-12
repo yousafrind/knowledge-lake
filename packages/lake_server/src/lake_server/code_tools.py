@@ -1,6 +1,7 @@
 """Code tools (scope `code:read`). References are name matches, not precise (see register)."""
 
 import json
+import re
 from typing import Any
 
 from lake_core.embedding import Embedder
@@ -170,3 +171,56 @@ def code_search_json(
             ],
         }
     )
+
+
+def dependency_docs_json(engine: Engine, store: ObjectStore, repo: str | None = None) -> str:
+    """For each dependency in the repo's manifests, the documentation we hold about it."""
+    from lake_code.manifests import parse_manifest, search_terms
+
+    with engine.connect() as c:
+        manifests = c.execute(
+            text(
+                f"select l.repo, l.path, l.content_sha from ({LATEST}) l "
+                "where l.path ~ '(^|/)(pyproject\\.toml|requirements\\.txt|package\\.json|"
+                "Cargo\\.toml|go\\.mod)$' and (cast(:repo as text) is null or l.repo = :repo)"
+            ),
+            {"repo": repo},
+        ).all()
+        result = []
+        for m in manifests:
+            try:
+                deps = parse_manifest(m.path, get_original(store, m.content_sha).decode())
+            except (ValueError, KeyError):
+                continue  # unreadable manifest: skip it, do not fail the whole tool
+            for dep in deps:
+                terms = search_terms(dep)
+                docs = c.execute(
+                    text(
+                        "select distinct p.content_sha256 as sha, p.manifest->>'title' as title, "
+                        "l.path as location, "
+                        "(lower(p.manifest->>'title') = any(:t))::int * 2 + "
+                        "(lower(l.path) ~ ('(^|[/._-])(' || :alt || ')([/._-]|$)'))::int as score "
+                        "from package p join content c on c.sha256 = p.content_sha256 "
+                        "join location l on l.content_sha256 = p.content_sha256 "
+                        "where p.canonical and c.source_type not in ('code','manifest') "
+                        "and (lower(p.manifest->>'title') ~ ('(^|[^a-z0-9])(' || :alt || ')([^a-z0-9]|$)') "
+                        "or lower(l.path) ~ ('(^|[/._-])(' || :alt || ')([/._-]|$)')) "
+                        "order by score desc, title limit 3"
+                    ),
+                    {"t": terms, "alt": "|".join(re.escape(t) for t in terms)},
+                ).all()
+                result.append(
+                    {
+                        "repo": m.repo,
+                        "manifest": m.path,
+                        "dependency": dep.name,
+                        "spec": dep.spec,
+                        "ecosystem": dep.ecosystem,
+                        "dev": dep.dev,
+                        "docs": [
+                            {"id": f"lake://{d.sha}", "title": d.title, "location": d.location}
+                            for d in docs
+                        ],
+                    }
+                )
+    return json.dumps({"dependencies": result})

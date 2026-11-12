@@ -272,4 +272,11 @@ def create_server(
         """Orientation: files ranked by how much other code refers to them, with top-level defs."""
         return code_tools.repo_map_json(engine, repo, max_chars)
 
+    @server.tool()
+    def code_dependency_docs(repo: str | None = None) -> str:
+        """Dependencies from the repo's manifests, each with matching documentation in the lake."""
+        if store is None:
+            raise ValueError("object store not configured")
+        return code_tools.dependency_docs_json(engine, store, repo)
+
     return server

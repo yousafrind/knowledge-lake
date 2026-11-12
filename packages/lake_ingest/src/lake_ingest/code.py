@@ -78,7 +78,9 @@ class CodeAdapter:
                 str(p),
                 self.name,
                 datetime.fromtimestamp(p.stat().st_mtime, UTC),
-                source_type="code" if is_code else None,
+                source_type="code"
+                if is_code
+                else ("manifest" if Path(rel).name in MANIFESTS else None),
                 markdown=md,
             )
 

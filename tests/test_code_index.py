@@ -170,3 +170,86 @@ def test_code_tools(
     assert hits["symbol_matches"][0]["name"] == "helper" and hits["results"]
     with pytest.raises(ValueError):
         code_tools.file_outline_json(eng, "nope.py")
+
+
+def test_manifest_parsing() -> None:
+    from lake_code.manifests import parse_manifest, search_terms
+
+    py = parse_manifest(
+        "pyproject.toml",
+        '[project]\ndependencies=["requests>=2", "Pydantic-Core[x]==1; python_version>\'3\'"]\n'
+        '[dependency-groups]\ndev=["pytest"]\n',
+    )
+    assert [(d.name, d.spec, d.dev) for d in py] == [
+        ("requests", ">=2", False),
+        ("Pydantic-Core", "==1", False),
+        ("pytest", "", True),
+    ]
+    js = parse_manifest(
+        "web/package.json", '{"dependencies":{"@scope/lib":"^1"},"devDependencies":{"jest":"29"}}'
+    )
+    assert [(d.name, d.dev) for d in js] == [("@scope/lib", False), ("jest", True)]
+    assert search_terms(js[0])[0] == "lib"
+    cargo = parse_manifest(
+        "Cargo.toml",
+        '[dependencies]\nserde = "1"\ntokio = { version = "1.2", features=["full"] }\n',
+    )
+    assert [(d.name, d.spec) for d in cargo] == [("serde", "1"), ("tokio", "1.2")]
+    assert [d.name for d in parse_manifest("requirements.txt", "flask==3\n# c\n-e .\n")] == [
+        "flask"
+    ]
+    gomod = parse_manifest(
+        "go.mod", "module x\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.9.0\n)\n"
+    )
+    assert gomod[0].name == "github.com/gin-gonic/gin" and search_terms(gomod[0])[0] == "gin"
+
+
+def test_dependency_docs_link_to_crawled_documentation(
+    db_url: str, store: ObjectStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    from lake_core.db import make_engine
+    from lake_ingest.adapter import Item
+    from lake_ingest.registrar import Registrar
+    from lake_server import code_tools
+
+    upgrade_to_head(db_url)
+    for k, v in {
+        "DATABASE_URL": db_url,
+        "S3_ENDPOINT": store.s3.meta.endpoint_url,
+        "S3_KEY": "k",
+        "S3_SECRET": "s",
+        "S3_BUCKET": store.bucket,
+        "EMBEDDER": "hash",
+    }.items():
+        monkeypatch.setenv(f"LAKE_{k}", v)
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname="proj"\ndependencies=["requests>=2","rare-lib"]\n'
+    )
+    (repo / "app.py").write_text("import requests\n")
+    git(repo, "init", "-q")
+    git(repo, "-c", "user.email=a@b", "-c", "user.name=t", "add", ".")
+    git(repo, "-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "i")
+    eng = make_engine(db_url)
+    md = "# Requests: HTTP for Humans\n\nQuickstart."
+    Registrar(eng, store).register(
+        Item(
+            md.encode(),
+            "https://docs.example.org/requests/quickstart.html",
+            "crawl",
+            source_type="html",
+            markdown=md,
+        )
+    )
+    main(["code", str(repo)])
+    main(["work"])
+    deps = {
+        d["dependency"]: d
+        for d in json.loads(code_tools.dependency_docs_json(eng, store))["dependencies"]
+    }
+    assert deps["requests"]["docs"][0]["title"].startswith("Requests")
+    assert deps["requests"]["docs"][0]["location"].endswith("quickstart.html")
+    assert deps["rare-lib"]["docs"] == []
