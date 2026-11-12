@@ -1,10 +1,13 @@
 """The job loop: claim one job at a time from Postgres, run it, record the outcome."""
 
+import logging
 from dataclasses import dataclass
 
 from sqlalchemy import Engine, text
 
 from lake_processors.contract import Context, Registry
+
+log = logging.getLogger("lake.jobs")
 
 CLAIM = text(
     """
@@ -79,6 +82,19 @@ def run_once(
     except Exception as e:  # the loop records failures; retries are its job, not the processor's
         error = f"{type(e).__name__}: {e}"
     finish(ctx.engine, job, error, max_attempts, backoff)
+    log.log(
+        logging.INFO if error is None else logging.WARNING,
+        "job %s",
+        "done" if error is None else "failed",
+        extra={
+            "job_id": job.id,
+            "content_sha256": job.target.split(":")[0],  # target is a hash or "<hash>:<rev>"
+            "processor": job.processor,
+            "outcome": "done" if error is None else "failed",
+            "attempts": job.attempts,
+            "error": error,
+        },
+    )
     return True
 
 

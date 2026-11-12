@@ -1,0 +1,13 @@
+name: monthly
+on:
+  schedule:
+    - cron: "0 4 1 * *"
+  workflow_dispatch:
+jobs:
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run lake licences  # fails (and so notifies) when a GPL-family package appears

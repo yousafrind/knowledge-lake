@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from lake_core.db import make_engine
+from lake_core.logs import configure_logging
 from lake_core.objectstore import ObjectStore
 from lake_core.settings import load_settings
 from lake_ingest.adapter import Adapter
@@ -111,9 +112,11 @@ def main(argv: list[str] | None = None) -> int:
     tok = sub.add_parser("token", help="make an API token and print its tokens.toml entry")
     tok.add_argument("name")
     tok.add_argument("scopes", nargs="+")
+    sub.add_parser("licences", help="list installed packages with GPL-family licences")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
+    configure_logging()
     if args.cmd == "add":
         print(add(args.path))
     if args.cmd == "disk":
@@ -122,6 +125,13 @@ def main(argv: list[str] | None = None) -> int:
         record_disk_root(make_engine(load_settings().database_url), str(Path(args.path).resolve()))
         print(add(args.path, disk))
         print(f"{len(disk.skipped)} paths skipped")
+    if args.cmd == "licences":
+        from lake_core.licences import installed, violations
+
+        bad = violations(installed())
+        for name, lic in bad:
+            print(f"{name}: {lic}")
+        return 1 if bad else 0
     if args.cmd == "token":
         from lake_core.tokens import new_token
 

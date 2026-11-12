@@ -596,3 +596,19 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 The nightly schedule is `.github/workflows/ci.yml` (`schedule`, 03:17 UTC), which runs the whole suite, these tests included.
 
 **Limits.** These are our own reading of each client's rules, run with the MCP SDK client; no real claude.ai, ChatGPT or Codex connection was made, so a change in their requirements would not show up here. The monthly restore drill is not scheduled in CI (it needs the real host; run `make restore-drill`).
+
+---
+
+## W-034 Observability views and licence check
+
+**What.** Three small operating aids from the cross-cutting rules: job counts you can query, JSON logs that always name the job and document, and a check for GPL-family licences.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Job views | `lake_core/migrations/versions/0008_job_views.py` → `job_counts`, `job_problems` | `select * from job_counts` shows how many jobs each processor has per status. `job_problems` lists dead/failed jobs and ones stuck "running" past their lease, with the error. No metrics stack needed. |
+| JSON logs | `lake_core/logs.py` → `JsonFormatter`, `configure_logging()`; `lake_processors/loop.py` → `run_once()` logs on logger `lake.jobs` | Every finished job writes one JSON line with `job_id`, `content_sha256` (the target's hash part, so it works for hash and `<hash>:<rev>` targets), `processor`, `outcome`, `attempts`, `error`. The CLI turns JSON logging on at start. |
+| Licence check | `lake_core/licences.py` → `installed()`, `violations()`; CLI `lake licences`; `.github/workflows/monthly.yml` | Reads each installed package's declared licence and flags GPL and AGPL (LGPL is fine). Exit code 1 if any; the monthly workflow then fails and notifies. `allowed` lets a reviewed package be waved through. |
+
+**Checks.** `tests/test_observability.py`: views after one done and one dead job; log lines carry job and document ids; GPL/AGPL flagged and LGPL not; the check runs over the real environment. At the time of writing `lake licences` reports nothing for this environment.
+
+**Limits.** Only package-declared licences are read; model weights and the separate GPU worker (`workers/gpu`, MinerU) are not in this environment and still need the manual licence read-through listed as open questions in the architecture. The monthly workflow does not open an issue by itself (a failed run is the signal) and does not run the restore drill, which needs the real host. Only job-loop lines are structured so far; library and server logs just use the JSON format.
