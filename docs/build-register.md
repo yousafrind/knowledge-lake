@@ -182,3 +182,5 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_chunk.py`: `test_split_tracks_heading_path_and_respects_limit`, `test_chunk_job_writes_rows_once_and_queues_embed`.
 
 **Choice to review.** 1200 characters is a starting size, not tuned; retrieval evals (W-014) should decide.
+
+**Fix made during W-010.** The registrar (W-006) queued the markdown shortcut's `chunk` job with a content hash, but `chunk` targets a package id (`<hash>:<rev>`). Caught by the W-010 end-to-end test; fixed in `Registrar.register()` and covered by `tests/test_registrar.py::test_markdown_chunk_job_targets_the_package`. Job targets are: `parse` → content hash; every later step → package id.

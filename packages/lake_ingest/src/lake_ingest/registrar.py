@@ -81,7 +81,10 @@ class Registrar:
                 put_original(self.store, sha, item.data)
                 if item.markdown is not None:
                     self._write_markdown_package(c, item, sha, stype)
-                enqueue_job(c, "chunk" if item.markdown is not None else "parse", sha)
+                if item.markdown is not None:
+                    enqueue_job(c, "chunk", ids.package_id(sha, 1))  # chunk targets a package
+                else:
+                    enqueue_job(c, "parse", sha)  # parse targets a content hash
         return Result(sha, new_content, new_location)
 
     def _write_markdown_package(self, c, item: Item, sha: str, stype: str) -> None:  # type: ignore[no-untyped-def]

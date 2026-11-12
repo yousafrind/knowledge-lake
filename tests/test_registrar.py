@@ -40,3 +40,11 @@ def test_markdown_item_gets_package_and_chunk_job(db_url: str, store: ObjectStor
     assert count(eng, "package") == 1
     with eng.connect() as conn:
         assert conn.execute(text("select processor from job")).scalar_one() == "chunk"
+
+
+def test_markdown_chunk_job_targets_the_package(db_url: str, store: ObjectStore) -> None:
+    upgrade_to_head(db_url)
+    eng = make_engine(db_url)
+    r = Registrar(eng, store).register(Item(b"# T", "/n.md", "upload", markdown="# T"))
+    with eng.connect() as c:
+        assert c.execute(text("select target from job")).scalar_one() == f"{r.content_sha256}:1"
