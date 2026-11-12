@@ -33,6 +33,7 @@ def build_registry(embedder_name: str):  # type: ignore[no-untyped-def]
     from lake_processors.chunk import ChunkProcessor
     from lake_processors.contract import Registry
     from lake_processors.embed import EmbedProcessor
+    from lake_processors.link import LinkProcessor
     from lake_processors.parse import ParseProcessor
 
     parsers: dict[str, Parser] = {}
@@ -46,6 +47,7 @@ def build_registry(embedder_name: str):  # type: ignore[no-untyped-def]
     reg = Registry()
     reg.add(ParseProcessor(parsers, PlainTextParser()))
     reg.add(ChunkProcessor())
+    reg.add(LinkProcessor())
     reg.add(EmbedProcessor(make_embedder(embedder_name)))
     return reg
 

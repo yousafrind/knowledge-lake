@@ -291,3 +291,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_crawler.py`: `test_crawl_stays_in_prefix_obeys_robots_and_makes_markdown`, `test_page_limit` (against a local HTTP server).
 
 **Limits.** Static HTML only (no JavaScript rendering). The sandbox cannot reach the open web, so only the local test server was crawled. Pages redirected to a different URL are recorded under their final URL.
+
+---
+
+## W-017 Deterministic link graph (Done)
+
+**What.** Records which document links to which, using only explicit links (no AI guessing), and shows them in the reader.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Table | `lake_core/migrations/versions/0003_edge.py` → `edge(src_sha, dst_ref, dst_sha, kind, anchor)` | One row per distinct link. `dst_sha` stays empty until the target is in the lake. |
+| Extraction | `packages/lake_processors/src/lake_processors/link.py` → `LinkProcessor.run()`, `MD_LINK`, `resolve_ref()` | Finds markdown links, makes relative ones absolute against where the source file lives (file path or URL), drops `mailto:`, `#fragment`-only and similar. |
+| Late resolution | last statement of `run()` | Every run also fills in any still-open links whose target has since arrived, so adding files in any order gives the same graph. |
+| Wiring | `ChunkProcessor.run()` queues `link`; `lake_cli.build_registry()` registers it | Links are found right after chunking. |
+| Reader | `lake_server/gui.py` → `doc()` plus `templates/doc.html` | "Links out" and "Linked from" lists. |
+
+**Checks.** `tests/test_link.py`: `test_resolve_ref`, `test_links_resolve_even_when_target_arrives_later`; `tests/test_gui.py` now checks the link sections.
+
+**Limits.** Markdown inline links only (not reference-style `[x][1]`, bare URLs or HTML `<a>` in non-crawled files). Package-level edges for older revisions are not tracked; links belong to the content.

@@ -152,6 +152,18 @@ def build_gui_routes(
                     {"h": sha},
                 )
             ]
+            links_out = c.execute(
+                text("select dst_ref, dst_sha, anchor from edge where src_sha=:h order by dst_ref"),
+                {"h": sha},
+            ).all()
+            links_in = c.execute(
+                text(
+                    "select e.src_sha, coalesce(p.manifest->>'title', e.src_sha) as title "
+                    "from edge e left join package p on p.content_sha256=e.src_sha and p.canonical "
+                    "where e.dst_sha=:h"
+                ),
+                {"h": sha},
+            ).all()
         if not versions:
             return HTMLResponse("Not found (it may still be processing).", status_code=404)
         cur = next((v for v in versions if v.canonical), versions[0])
@@ -166,6 +178,8 @@ def build_gui_routes(
                 "outline": outline,
                 "versions": versions,
                 "locations": locations,
+                "links_out": links_out,
+                "links_in": links_in,
                 "uri": f"lake://{sha}#{cur.rev}",
             },
         )

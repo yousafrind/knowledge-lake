@@ -44,6 +44,7 @@ def test_browse_search_read(client: TestClient) -> None:
     assert "Databases" in hits and "#databases-replication" in hits
     doc = client.get(f"/doc/{sha}").text
     assert 'id="databases-replication"' in doc and "rev 1 (current)" in doc
+    assert "Links out" in doc and "Linked from" in doc
     assert "<script>alert" not in doc  # raw HTML in documents is escaped
 
 

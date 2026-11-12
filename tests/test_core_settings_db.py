@@ -32,7 +32,7 @@ def test_env_overrides_toml(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 def test_fresh_db_upgrades_to_head(db_url: str) -> None:
     upgrade_to_head(db_url)
     with make_engine(db_url).connect() as c:
-        assert c.execute(text("select version_num from alembic_version")).scalar() == "0002"
+        assert c.execute(text("select version_num from alembic_version")).scalar() == "0003"
 
 
 def test_only_lake_core_reads_environment() -> None:
