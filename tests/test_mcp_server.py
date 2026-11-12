@@ -12,6 +12,7 @@ from lake_processors.contract import Context, Registry
 from lake_processors.embed import EmbedProcessor
 from lake_processors.loop import run_until_idle
 from lake_server.mcp_tools import create_server, fetch_json, search_json
+from sqlalchemy import text
 
 A = "# Databases\n\n## Replication\n\nPostgres replication copies data.\n\nMore on replication."
 
@@ -40,7 +41,7 @@ def test_fetch_rejects_bad_ids(lake) -> None:  # type: ignore[no-untyped-def]
         fetch_json(lake, "not-a-uri")
 
 
-def test_server_exposes_exactly_search_and_fetch_over_mcp(lake) -> None:  # type: ignore[no-untyped-def]
+def test_server_exposes_the_read_tools_over_mcp(lake) -> None:  # type: ignore[no-untyped-def]
     server = create_server(lake, HashEmbedder())
 
     async def go() -> tuple[list[str], str]:
@@ -49,4 +50,54 @@ def test_server_exposes_exactly_search_and_fetch_over_mcp(lake) -> None:  # type
         return tools, out.content[0].text  # type: ignore[union-attr]
 
     tools, body = asyncio.run(go())
-    assert sorted(tools) == ["fetch", "search"] and "results" in body
+    assert (
+        sorted(tools) == ["fetch", "get_document", "neighbors", "query", "resolve_source", "search"]
+        and "results" in body
+    )
+
+
+def test_read_tools(lake) -> None:  # type: ignore[no-untyped-def]
+    from lake_server.mcp_tools import (
+        get_document_json,
+        neighbors_json,
+        query_json,
+        resolve_source_json,
+    )
+
+    hit = json.loads(search_json(lake, HashEmbedder(), "replication"))["results"][0]
+    doc = json.loads(get_document_json(lake, hit["id"]))
+    assert doc["outline"] == ["Databases > Replication"] and doc["revisions"][0]["canonical"]
+    assert json.loads(resolve_source_json(lake, hit["id"]))["locations"][0]["path"] == "/db.md"
+    none = json.loads(query_json(lake, HashEmbedder(), "replication", source_type="pdf"))
+    assert none["results"] == []
+    some = json.loads(query_json(lake, HashEmbedder(), "replication", source_type="markdown"))
+    assert some["results"]
+    n = json.loads(neighbors_json(lake, HashEmbedder(), hit["id"]))
+    assert n["links_out"] == [] and n["similar"] == []  # only one document in this lake
+    with pytest.raises(ValueError):
+        get_document_json(lake, "zz")
+
+
+def test_neighbors_finds_similar_document(db_url: str, store: ObjectStore) -> None:
+    from lake_server.mcp_tools import neighbors_json
+
+    upgrade_to_head(db_url)
+    eng = make_engine(db_url)
+    reg = Registrar(eng, store)
+    docs = {
+        "/a.md": "# A\n\nraft leader election votes majority",
+        "/b.md": "# B\n\nleader election needs a majority of votes in raft",
+        "/c.md": "# C\n\nsourdough starter flour water",
+    }
+    for path, md in docs.items():
+        reg.register(Item(md.encode(), path, "upload", markdown=md))
+    r = Registry()
+    r.add(ChunkProcessor())
+    r.add(EmbedProcessor(HashEmbedder()))
+    run_until_idle(Context(eng, store), r)
+    with eng.connect() as c:
+        a = c.execute(
+            text("select content_sha256 from package where manifest->>'title'='A'")
+        ).scalar_one()
+    sim = json.loads(neighbors_json(eng, HashEmbedder(), a))["similar"]
+    assert [s["title"] for s in sim][0] == "B"

@@ -327,3 +327,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_qa_escalation.py`: `test_qa_flags_empty_garbled_and_sparse_output`, `test_failed_qa_escalates_to_stronger_parser`, `test_escalation_failure_keeps_first_result_flagged`, `test_remote_parser_posts_file_and_reads_markdown` (local HTTP stub).
 
 **Open items from the architecture.** MinerU licence still needs reading before real use (open question in `architecture.md`). The "review queue" that lists `needs_review` packages arrives with W-023.
+
+---
+
+## W-019 Remaining read tools (Done)
+
+**What.** Four more MCP tools so agents can narrow searches and explore around a document.
+
+| Tool | Where (all in `packages/lake_server/src/lake_server/mcp_tools.py`) | Plain-words behaviour |
+|---|---|---|
+| `query(query, source_type, tier, limit)` | `query_json()` | Search with filters; limit capped at 50. |
+| `get_document(id)` | `get_document_json()` | Manifest, the outline (section names in reading order) and all revisions. `id` can be a hash or a `lake://` URI. |
+| `neighbors(id, limit)` | `neighbors_json()` | Links out, documents that link here, and *similar* documents: the average vector of this document compared with the closest chunk in every other document. |
+| `resolve_source(id)` | `resolve_source_json()` | Every source and path where the same bytes were found, with times. |
+
+**Checks.** `tests/test_mcp_server.py`: `test_read_tools`, `test_neighbors_finds_similar_document`, and the tool-list test now expects six tools.
+
+**Not yet.** Label and group filters in `query` (they arrive with W-021). Scopes are still not enforced (W-032): every tool here is a `read` tool. `research` is W-030; code tools W-025.
