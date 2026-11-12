@@ -1,0 +1,52 @@
+[project]
+name = "knowledge-lake"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = ["lake-core", "lake-ingest", "lake-parsers", "lake-processors", "lake-code", "lake-retrieval", "lake-server", "lake-cli"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+lake-core = { workspace = true }
+lake-ingest = { workspace = true }
+lake-parsers = { workspace = true }
+lake-processors = { workspace = true }
+lake-code = { workspace = true }
+lake-retrieval = { workspace = true }
+lake-server = { workspace = true }
+lake-cli = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy", "import-linter"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+strict = true
+exclude = ["tests/fixtures"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["fixtures"]
+
+[tool.importlinter]
+root_packages = ["lake_core", "lake_ingest", "lake_parsers", "lake_processors", "lake_code", "lake_retrieval", "lake_server", "lake_cli"]
+
+[[tool.importlinter.contracts]]
+name = "Imports run down four layers"
+type = "layers"
+layers = [
+    "lake_server | lake_cli",
+    "lake_processors | lake_retrieval",
+    "lake_ingest | lake_parsers | lake_code",
+    "lake_core",
+]

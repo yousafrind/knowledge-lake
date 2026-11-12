@@ -1,0 +1,35 @@
+id,title,phase,needs,touches,implements,days,status
+W-001,"Repo, tooling and import-rule lint",P0,,"root, tests","arch:folder-structure, arch:dependency-rules",1,Done
+W-002,"Local stack: Postgres with pgvector, object store",P0,W-001,deploy/local,"arch:runtime-layout, arch:deployment",1,Not started
+W-003,"lake_core: settings, db session, migrations",P0,"W-001, W-002",lake_core,arch:cross-cutting,1,Not started
+W-004,lake_core: schema v1,P0,W-003,"lake_core, schemas","arch:data-model, arch:identity",2,Not started
+W-005,lake_core: object store and package IO,P0,"W-002, W-003","lake_core, schemas","arch:runtime-layout, arch:identity",2,Not started
+W-006,Registrar,P0,"W-004, W-005",lake_ingest,"arch:ingestion, arch:adapter-interface",2,Not started
+W-007,Job loop and processor contract,P0,W-004,lake_processors,"arch:processing-core, arch:processor-contract",2,Not started
+W-008,Upload adapter and lake add,P0,W-006,"lake_ingest, lake_cli",arch:adapter-interface,1,Not started
+W-009,Docling parse processor,P1,"W-006, W-007","lake_parsers, lake_processors","arch:processor-contract, plan:req-1",2,Not started
+W-010,Chunk processor,P1,W-009,lake_processors,plan:req-2,2,Not started
+W-011,Embedding and full-text index,P1,W-010,lake_processors,"plan:req-2, arch:retrieval",3,Not started
+W-012,"Hybrid search, fusion and citations",P1,"W-004, W-011",lake_retrieval,"arch:retrieval, arch:identity",3,Not started
+W-013,MCP server: search and fetch,P1,W-012,lake_server,"arch:mcp-tools, plan:req-3",2,Not started
+W-014,Golden question set and eval runner,P1,W-013,evals,"arch:tests, plan:req-3",2,Not started
+W-015,"GUI v1: browse, search, reader",P1,W-013,lake_server,"arch:web-gui, plan:req-7",4,Not started
+W-016,Website crawler adapter,P2,W-006,lake_ingest,plan:req-0,4,Not started
+W-017,Deterministic link graph,P2,W-010,lake_processors,plan:req-2,2,Not started
+W-018,QA scoring and MinerU escalation,P2,W-009,"lake_parsers, workers/gpu","plan:req-1, arch:system-map",4,Not started
+W-019,Remaining read tools,P2,"W-013, W-017",lake_server,arch:mcp-tools,2,Not started
+W-020,Disk walker and ignore rules,P2b,W-006,lake_ingest,plan:req-6,3,Not started
+W-021,"Dedupe, type detection, classify and group",P2b,"W-007, W-020",lake_processors,plan:req-6,5,Not started
+W-022,explain_path tool,P2b,W-020,"lake_server, lake_cli","plan:req-6, arch:mcp-tools",1,Not started
+W-023,"GUI review queue, sources, jobs and markdown editor",P2b,"W-015, W-021",lake_server,"arch:web-gui, plan:req-7",5,Not started
+W-024,Code adapter and symbols,P3,"W-006, W-007","lake_code, lake_ingest",plan:req-5,4,Not started
+W-025,"SCIP references, repo map and code tools",P3,"W-013, W-024","lake_code, lake_server",plan:req-5,4,Not started
+W-026,Docs bridge,P3,"W-016, W-025",lake_code,plan:req-5,2,Not started
+W-027,"Chat importers, write-back tools and secret scan",P3,"W-006, W-013","lake_ingest, lake_server",plan:req-4,4,Not started
+W-028,GUI code browser and chats,P3,"W-015, W-025, W-027",lake_server,"arch:web-gui, plan:req-7",3,Not started
+W-029,LightRAG pilot behind the eval gate,P4,"W-014, W-017",lake_processors,plan:req-2,5,Not started
+W-030,Knowledge broker: research tool,P4,"W-017, W-019","lake_retrieval, lake_server","plan:req-2, plan:req-3",4,Not started
+W-031,"Stage B: private host, backups, restore drill",P5,W-002,deploy/stage-b,"arch:deployment, arch:network",3,Not started
+W-032,"Stage C: edge, OAuth, rate limits",P5,"W-013, W-031","deploy/stage-c, lake_server","arch:network, arch:system-map",3,Not started
+W-033,Client contract tests,P5,W-032,tests,"arch:tests, plan:req-3",3,Not started
+W-034,Observability views and licence check,P5,W-007,"lake_core, lake_processors","arch:cross-cutting, arch:tests",2,Not started
