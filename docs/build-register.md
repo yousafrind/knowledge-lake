@@ -511,3 +511,19 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_gui.py::test_code_browser_and_chat_list` (builds a real git repo, indexes it, browses folders, opens a file, follows a reference, lists/filter chats).
 
 **Limits.** No syntax highlighting; no per-commit history view; chats are listed by saved date from the manifest, not by conversation date.
+
+---
+
+## W-029 LightRAG pilot behind the eval gate (Partial: gate built, LightRAG not run)
+
+**What.** The machinery to decide whether any graph-based retrieval deserves to be adopted, plus a cheap graph option that needs no AI model. LightRAG itself was **not** piloted (see `docs/adr/0002-lightrag-pilot-deferred.md`): it needs an LLM for entity extraction, and this environment has none.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Gate | `evals/gate.py` → `verdict(baseline, candidate)` | A candidate is adopted only if it improves recall@k or MRR by at least 0.05 while losing at most 0.02 on the other. A tie or a tiny gain is a "no". |
+| Comparable runs | `evals/run_eval.py` → `evaluate(embedder, k, retriever)`, CLI `--retriever hybrid\|links` | Any retriever with the signature `retriever(engine, embedder, query, limit=k)` can be scored on the same golden set and written to `evals/runs/`. |
+| Link expansion (no LLM) | `packages/lake_retrieval/src/lake_retrieval/graph.py` → `search_with_links()` | Takes the top 3 hits, follows explicit links (out and in) to neighbouring documents, and adds each neighbour's best passage (half the score of the hit that led there; tagged `via: link`). Up to 2 of the result slots are reserved for these, so linked evidence can actually appear. Off unless a caller uses it. |
+
+**Checks.** `tests/test_eval_runner.py`: `test_gate_requires_a_real_improvement`, `test_link_expansion_adds_linked_document`.
+
+**To finish the real pilot** (on your machine, with an LLM key and your documents): wrap LightRAG with the retriever signature, run both retrievers with the real embedder on a golden set built from your documents, and ask `verdict()`. The 8-question fixture set is too small to decide anything.
