@@ -4,6 +4,7 @@ Reads LAKE_DATABASE_URL, LAKE_S3_ENDPOINT, LAKE_S3_KEY, LAKE_S3_SECRET, LAKE_S3_
 Deploy tooling, not package code: the layer rules and the settings rule (only lake_core
 reads the environment) apply to packages/ only.
 """
+
 import os
 import sys
 

@@ -185,9 +185,9 @@ A processor is a small class that reads one package and writes rows keyed by `(c
 
 ```python
 class Processor(Protocol):
-    name: str                     # "chunk", "embed", "link", "label", ...
-    version: str                  # bump to trigger reprocessing
-    accepts: set[str]             # source types it applies to
+    name: str  # "chunk", "embed", "link", "label", ...
+    version: str  # bump to trigger reprocessing
+    accepts: set[str]  # source types it applies to
     cost: Literal["cpu", "gpu", "llm"]
 
     def run(self, package: Package, db: Session) -> None: ...
@@ -220,9 +220,10 @@ Adapters are the only code that knows about a source. They yield items; the regi
 
 ```python
 class Adapter(Protocol):
-    name: str                       # "upload", "crawl", "git", "chat", "disk"
+    name: str  # "upload", "crawl", "git", "chat", "disk"
 
     def scan(self, source: Source) -> Iterator[Item]: ...
+
     # Item = bytes or a stream + location (path or URL) + mtime + hints
 ```
 

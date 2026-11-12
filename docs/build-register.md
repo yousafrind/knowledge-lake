@@ -82,3 +82,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_core_schema.py`: `test_one_content_row_per_hash`, `test_one_canonical_package_per_content`, `test_one_job_per_processor_version_target`, `test_ids_are_stable`, `test_schemas`.
 
 **Not built.** Satellite tables (label, group, edge, symbol): later items add them as needed.
+
+---
+
+## W-005 lake_core: object store and package IO (Done)
+
+**What.** A small client for the S3-style store, and the functions that save and load originals and packages.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Client | `lake_core/objectstore.py` → `ObjectStore` (`put`, `get`, `exists`, `ensure_bucket`) | Wraps boto3 so the rest of the code never touches S3 details; swapping MinIO for another S3 store is a settings change. |
+| Key layout | `original_key()`, `package_prefix()` | `originals/<first 2 hex>/<hash>` and `packages/<hash>/<rev>/<file>` exactly as in the runtime layout. The 2-letter folder keeps listings small. |
+| Originals | `put_original()`, `get_original()` | Raw bytes saved by hash. Same hash means same bytes, so saving twice is harmless. |
+| Packages | `write_package()`, `read_package()`, `PackageExists` | Validates the manifest first, refuses an existing `rev` (packages are immutable), writes the files first and `manifest.json` last, so a half-written package never looks complete. |
+
+**Checks.** `tests/test_core_objectstore.py`: `test_round_trip_byte_for_byte`, `test_existing_rev_rejected_new_rev_ok`, `test_bad_manifest_rejected_and_nothing_written` (runs against in-process moto S3).
+
+**Known limit.** The "does this rev exist" check and the write are two steps, fine with one writer (see the `ponytail:` comment in `write_package`).

@@ -50,3 +50,7 @@ layers = [
     "lake_ingest | lake_parsers | lake_code",
     "lake_core",
 ]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*"]
+ignore_missing_imports = true
