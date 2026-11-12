@@ -167,3 +167,18 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_parse_processor.py::test_parse_writes_package_and_queues_chunk` (with the plain parser). `tests/test_docling_smoke.py` runs real Docling on `tests/fixtures_data/sample.pdf`.
 
 **Gap, honestly.** In this sandbox Docling installs but cannot download its model weights (Hugging Face is blocked), so the smoke test **skips here** and the Docling backend has not been run end to end. Run `uv sync --extra docling` (or `pip install docling`) on your machine and `uv run pytest tests/test_docling_smoke.py` to confirm; if the output shape differs, fix `DoclingParser.parse()` only.
+
+---
+
+## W-010 Chunk processor (Done)
+
+**What.** Cuts a package's markdown into passages that can be searched and cited.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Splitter | `packages/lake_processors/src/lake_processors/chunk.py` → `split_markdown()`, `Piece`, `MAX_CHARS=1200` | Splits at headings, keeps the heading path (`Book > Ch1`) as the section so citations can point somewhere readable, packs paragraphs up to 1200 characters, and does not treat `#` lines inside code fences as headings. |
+| Processor | `ChunkProcessor.run()` | Reads `content.md`, writes chunk rows (id from package + position + chunker version, `ON CONFLICT DO NOTHING` so reruns add nothing), queues an `embed` job. |
+
+**Checks.** `tests/test_chunk.py`: `test_split_tracks_heading_path_and_respects_limit`, `test_chunk_job_writes_rows_once_and_queues_embed`.
+
+**Choice to review.** 1200 characters is a starting size, not tuned; retrieval evals (W-014) should decide.
