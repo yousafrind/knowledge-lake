@@ -421,3 +421,22 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 - The crawl runs inside the web process thread with no progress display; "Add path" runs inside the request and can be slow for large trees.
 - No quarantine release screen yet (needs W-027's secret scan). Cookie-based forms rely on the session cookie's `SameSite=Lax`, there is no separate CSRF token.
 - Groups accepted in review are not yet used as search filters.
+
+---
+
+## W-024 Code adapter and symbols (Done)
+
+**What.** `lake code <repo>` indexes a source repository: every code file gets its definitions extracted, and each definition becomes a searchable chunk.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Language map | `packages/lake_core/src/lake_core/languages.py` → `language_of()` | Python, JavaScript, TypeScript/TSX, Go, Rust, Java by suffix. In `lake_core` because both ingest (typing) and the code package need it and may not import each other. |
+| Symbol extraction | `packages/lake_code/src/lake_code/symbols.py` → `extract_symbols()`, `Symbol`, `DEFS` | tree-sitter finds functions, classes, methods, interfaces, structs etc. Each symbol has a qualified name (`Repo.save`), kind, one-line signature, docstring (Python) or preceding comment (others), line range and parent. Functions inside classes become methods. |
+| Adapter | `packages/lake_ingest/src/lake_ingest/code.py` → `CodeAdapter.scan()`, `wanted()`, `RepoInfo` | In a git repo the file list is exactly what git reports (tracked plus untracked-not-ignored), so `.gitignore` is honoured. Takes code files, manifests (`pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`...) and `.md` docs; skips `.env`, keys and certificates by name, files over 2 MB. Without git it falls back to the disk ignore rules. |
+| Repo tables | `lake_core/migrations/versions/0005_code.py` → `code_repo`, `code_repo_file` (repo, commit, path, content hash), `code_symbol` (+ `pg_trgm` index on names) | Files are indexed per `(repo, commit)` but symbols hang off the content hash, so an unchanged file in a new commit costs nothing and the same file in two repos is parsed once. `record_repo()` writes the repo rows. |
+| Indexer | `packages/lake_processors/src/lake_processors/code_index.py` → `CodeIndexProcessor` | Stores the source as a package (fenced code block, so the reader works), writes symbol rows, and one chunk per symbol (`path + doc + body`, 1500 characters max; files with no symbols get their first 60 lines). Then queues embedding and classification. |
+| Routing | `Registrar.register()` queues `code_index` (not `parse`) for type `code`; `detect_type()` returns `code` for known suffixes | |
+
+**Checks.** `tests/test_code_index.py`: Python symbols (signature, doc, lines, parents), JS/TS/Go/Rust/Java symbols, JS comment docs, and an end-to-end git repo test (gitignored file and `.env` never reach the lake; symbols, chunks and embeddings exist).
+
+**Not built yet.** Commit history and ownership; indexing only changed files of older copies; "repos duplicated across backups" logic; the full secret scan (W-027). Symbols for other languages (C/C++, Ruby, PHP...) need their tree-sitter grammar added to `DEFS`.

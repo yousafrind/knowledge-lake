@@ -4,6 +4,8 @@ from functools import lru_cache
 from pathlib import PurePosixPath
 from typing import Any
 
+from lake_core.languages import language_of
+
 SUFFIX_TYPES = {
     ".pdf": "pdf",
     ".md": "markdown",
@@ -55,6 +57,8 @@ def detect_type(data: bytes, path: str) -> str:
     for magic, kind in MAGIC.items():
         if data.startswith(magic):
             return kind  # unambiguous signatures win over any extension
+    if language_of(path) and b"\x00" not in data[:4096]:
+        return "code"
     by_suffix = SUFFIX_TYPES.get(PurePosixPath(path).suffix.lower())
     if (
         by_suffix is not None

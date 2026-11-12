@@ -8,6 +8,7 @@ from lake_core.db import make_engine
 from lake_core.objectstore import ObjectStore
 from lake_core.settings import load_settings
 from lake_ingest.adapter import Adapter
+from lake_ingest.code import CodeAdapter, record_repo
 from lake_ingest.crawl import CrawlAdapter
 from lake_ingest.disk import DiskAdapter
 from lake_ingest.explain import explain_path_json, record_disk_root
@@ -41,6 +42,7 @@ def build_registry(
     from lake_parsers.plain import PlainTextParser
     from lake_processors.chunk import ChunkProcessor
     from lake_processors.classify import ClassifyProcessor, load_rules
+    from lake_processors.code_index import CodeIndexProcessor
     from lake_processors.embed import EmbedProcessor
     from lake_processors.group import GroupProcessor
     from lake_processors.link import LinkProcessor
@@ -62,6 +64,7 @@ def build_registry(
         escalation = RemoteParser(gpu_url, token=gpu_token)
     reg.add(ParseProcessor(parsers, PlainTextParser(), escalation))
     reg.add(ChunkProcessor())
+    reg.add(CodeIndexProcessor())
     reg.add(LinkProcessor())
     reg.add(ClassifyProcessor(load_rules(rules_yaml)))
     embedder = make_embedder(embedder_name)
@@ -95,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("crawl", help="crawl a website section").add_argument("url")
     sub.add_parser("disk", help="walk a folder tree with ignore rules").add_argument("path")
     sub.add_parser("explain", help="why was this path indexed or ignored").add_argument("path")
+    sub.add_parser("code", help="index a git repo or code folder").add_argument("path")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
@@ -114,6 +118,14 @@ def main(argv: list[str] | None = None) -> int:
                 make_engine(s.database_url), args.path, rules.read_text() if rules.is_file() else ""
             )
         )
+    if args.cmd == "code":
+        s = load_settings()
+        rules = Path(s.config_dir) / "lakeignore.default"
+        code = CodeAdapter(rules.read_text() if rules.is_file() else "")
+        print(add(args.path, code))
+        if code.repo:
+            record_repo(make_engine(s.database_url), code.repo)
+            print(f"repo {code.repo.root} @ {code.repo.commit[:10]}: {len(code.repo.files)} files")
     if args.cmd == "crawl":
         print(add(args.url, CrawlAdapter()))
     if args.cmd == "work":

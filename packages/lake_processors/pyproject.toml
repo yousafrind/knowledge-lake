@@ -2,7 +2,7 @@
 name = "lake-processors"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["lake-core", "lake-parsers", "pyyaml"]
+dependencies = ["lake-core", "lake-parsers", "lake-code", "pyyaml"]
 
 [build-system]
 requires = ["hatchling"]

@@ -70,6 +70,8 @@ class Registrar:
                     self._write_markdown_package(c, item, sha, stype)
                 if item.markdown is not None:
                     enqueue_job(c, "chunk", ids.package_id(sha, 1))  # chunk targets a package
+                elif stype == "code":
+                    enqueue_job(c, "code_index", sha)  # code has its own indexer
                 else:
                     enqueue_job(c, "parse", sha)  # parse targets a content hash
         return Result(sha, new_content, new_location)
