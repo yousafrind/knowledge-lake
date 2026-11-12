@@ -116,3 +116,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 | Job creation | `Registrar._enqueue()` | Job id comes from processor + version + target, so enqueueing twice is a no-op. |
 
 **Checks.** `tests/test_registrar.py`: `test_same_bytes_two_paths_and_same_path_twice`, `test_markdown_item_gets_package_and_chunk_job`. Test helpers in `tests/conftest.py` (`db_url`, `store`).
+
+---
+
+## W-007 Job loop and processor contract (Done)
+
+**What.** The engine that runs all background work: workers take jobs from a Postgres table, one at a time, safely.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Contract | `packages/lake_processors/src/lake_processors/contract.py` → `Processor` (protocol), `Context(engine, store)`, `Registry` | A processor is a small class with a name, a version and `run(target, ctx)`. Bumping `version` makes new job rows, so everything is reprocessed. Signature differs from the first architecture draft, see `docs/adr/0001-processor-run-signature.md`. |
+| Claiming | `lake_processors/loop.py` → `CLAIM` SQL, `claim()` | One statement picks a ready job with `FOR UPDATE SKIP LOCKED` and marks it running with a lease. Two workers can never get the same job, with no extra coordination or broker. |
+| Crash recovery | same `CLAIM` (`status='running' and lease_until < now()`) | If a worker dies, its lease runs out and the job becomes claimable again. |
+| Retry and dead letter | `finish()` | Failure puts the job back with a growing delay (`backoff * 2^(attempts-1)`); after `max_attempts` it is marked `dead` and keeps its last error for a human to read. |
+| Running | `run_once()`, `run_until_idle()` | Exceptions from a processor are caught and recorded by the loop, so processors stay simple. |
+
+**Checks.** `tests/test_job_loop.py`: `test_two_workers_never_claim_the_same_job`, `test_crashed_workers_lease_expires_and_job_reruns`, `test_always_failing_processor_ends_dead`, `test_rerun_creates_no_duplicates`.
+
+**Not built.** The GPU branch (`cost: gpu` currently runs like any other job). `architecture.md` updated for the changed signature.

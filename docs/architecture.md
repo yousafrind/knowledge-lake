@@ -181,7 +181,7 @@ Workers claim with `FOR UPDATE SKIP LOCKED`, so adding a second worker needs no 
 
 ## Processor contract
 
-A processor is a small class that reads one package and writes rows keyed by `(content_sha256, rev, processor, processor_version)`. Bumping `version` makes the job loop reprocess everything it applies to; running twice with the same version changes nothing.
+A processor is a small class that reads one target (a content hash or package id) and writes rows keyed by `(content_sha256, rev, processor, processor_version)`. Bumping `version` makes the job loop reprocess everything it applies to; running twice with the same version changes nothing.
 
 ```python
 class Processor(Protocol):
@@ -190,7 +190,7 @@ class Processor(Protocol):
     accepts: set[str]  # source types it applies to
     cost: Literal["cpu", "gpu", "llm"]
 
-    def run(self, package: Package, db: Session) -> None: ...
+    def run(self, target: str, ctx: Context) -> None: ...  # ADR 0001
 ```
 
 | Job field | Meaning |

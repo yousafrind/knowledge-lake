@@ -884,6 +884,12 @@ source = { editable = "packages/lake_parsers" }
 name = "lake-processors"
 version = "0.0.0"
 source = { editable = "packages/lake_processors" }
+dependencies = [
+    { name = "lake-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "lake-core", editable = "packages/lake_core" }]
 
 [[package]]
 name = "lake-retrieval"
