@@ -275,3 +275,19 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_gui.py`: `test_requires_login`, `test_browse_search_read`, `test_render_markdown_ids_match_citation_slugs`.
 
 **Deviations / not built.** HTMX is not used yet (plain links and forms are enough for v1). No page-image viewer, links-in/out (needs W-017), editing or review queue (W-023). `lake serve` needs `LAKE_S3_*` and `LAKE_GUI_PASSWORD`.
+
+---
+
+## W-016 Website crawler adapter (Done)
+
+**What.** `lake crawl <url>` pulls a documentation site into the lake.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Crawler | `packages/lake_ingest/src/lake_ingest/crawl.py` → `CrawlAdapter.scan()` | Breadth-first from the start page. Stays under the start URL's folder (`same_prefix`), obeys `robots.txt`, limits pages (100) and depth (3), pauses 0.5 s between requests, skips non-HTML and error pages, ignores `#fragments`. |
+| Conversion | same file, BeautifulSoup + `markdownify` | Drops scripts, styles, nav and footer, converts to markdown, and adds the page `<title>` as a heading when there is none, so titles and citations work. Items carry the raw HTML as the original and the markdown ready-made (so no parse step). |
+| Command | `lake_cli/main.py` → `lake crawl <url>`; `add()` now takes any adapter | Same counting output as `lake add`; re-crawling reports no new content for unchanged pages. |
+
+**Checks.** `tests/test_crawler.py`: `test_crawl_stays_in_prefix_obeys_robots_and_makes_markdown`, `test_page_limit` (against a local HTTP server).
+
+**Limits.** Static HTML only (no JavaScript rendering). The sandbox cannot reach the open web, so only the local test server was crawled. Pages redirected to a different URL are recorded under their final URL.

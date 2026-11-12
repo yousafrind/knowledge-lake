@@ -6,17 +6,19 @@ import sys
 from lake_core.db import make_engine
 from lake_core.objectstore import ObjectStore
 from lake_core.settings import load_settings
+from lake_ingest.adapter import Adapter
+from lake_ingest.crawl import CrawlAdapter
 from lake_ingest.registrar import Registrar
 from lake_ingest.upload import UploadAdapter
 
 
-def add(path: str) -> str:
+def add(path: str, adapter: Adapter | None = None) -> str:
     s = load_settings()
     store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
     store.ensure_bucket()
     reg = Registrar(make_engine(s.database_url), store)
     seen = new_content = new_locations = 0
-    for item in UploadAdapter().scan(path):
+    for item in (adapter or UploadAdapter()).scan(path):
         r = reg.register(item)
         seen += 1
         new_content += r.new_content
@@ -62,11 +64,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="lake")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("add", help="add a file or folder").add_argument("path")
+    sub.add_parser("crawl", help="crawl a website section").add_argument("url")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
     if args.cmd == "add":
         print(add(args.path))
+    if args.cmd == "crawl":
+        print(add(args.url, CrawlAdapter()))
     if args.cmd == "work":
         print(work())
     if args.cmd == "serve":
