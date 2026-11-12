@@ -8,6 +8,7 @@ from lake_core.db import make_engine
 from lake_core.objectstore import ObjectStore
 from lake_core.settings import load_settings
 from lake_ingest.adapter import Adapter
+from lake_ingest.chat import ChatGPTExportAdapter, ClaudeCodeAdapter, ClaudeExportAdapter
 from lake_ingest.code import CodeAdapter, record_repo
 from lake_ingest.crawl import CrawlAdapter
 from lake_ingest.disk import DiskAdapter
@@ -99,6 +100,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("disk", help="walk a folder tree with ignore rules").add_argument("path")
     sub.add_parser("explain", help="why was this path indexed or ignored").add_argument("path")
     sub.add_parser("code", help="index a git repo or code folder").add_argument("path")
+    chats = sub.add_parser("chats", help="import chats from an export or transcripts")
+    chats.add_argument("kind", choices=["claude", "chatgpt", "claude-code"])
+    chats.add_argument("path")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
@@ -126,6 +130,13 @@ def main(argv: list[str] | None = None) -> int:
         if code.repo:
             record_repo(make_engine(s.database_url), code.repo)
             print(f"repo {code.repo.root} @ {code.repo.commit[:10]}: {len(code.repo.files)} files")
+    if args.cmd == "chats":
+        adapters: dict[str, type[Adapter]] = {
+            "claude": ClaudeExportAdapter,
+            "chatgpt": ChatGPTExportAdapter,
+            "claude-code": ClaudeCodeAdapter,
+        }
+        print(add(args.path, adapters[args.kind]()))
     if args.cmd == "crawl":
         print(add(args.url, CrawlAdapter()))
     if args.cmd == "work":

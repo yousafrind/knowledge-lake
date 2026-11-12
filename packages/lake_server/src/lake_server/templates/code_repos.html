@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block body %}<h2>Code</h2>
+<ul>{% for r in repos %}<li><a href="/code/{{ r.repo }}">{{ r.repo }}</a> <span class="muted">{{ r.files }} files · {{ r.root }}</span></li>
+{% else %}<li class="muted">No repos yet. Run <code>lake code &lt;path&gt;</code>.</li>{% endfor %}</ul>{% endblock %}

@@ -127,3 +127,60 @@ def test_quarantine_shown_and_released_from_review(
     assert "Held back" in page and "aws_access_key" in page and "/k.md" in page
     assert client.post(f"/quarantine/{r.content_sha256}/release").status_code == 303
     assert "Nothing held" in client.get("/review").text
+
+
+def test_code_browser_and_chat_list(
+    client: TestClient, db_url: str, store: ObjectStore, tmp_path
+) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from lake_cli.main import main as cli
+    from lake_server.write_tools import save_conversation_json
+
+    login(client)
+    eng = make_engine(db_url)
+    repo = tmp_path / "proj"
+    (repo / "pkg").mkdir(parents=True)
+    (repo / "pkg" / "a.py").write_text("def helper(x):\n    return x < 2\n")
+    (repo / "pkg" / "b.py").write_text("from pkg.a import helper\n\nhelper(1)\n")
+    for args in (
+        ["init", "-q"],
+        ["add", "."],
+        ["-c", "user.email=a@b", "-c", "user.name=t", "commit", "-qm", "i"],
+    ):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+    import os
+
+    for k, v in {
+        "DATABASE_URL": db_url,
+        "S3_ENDPOINT": store.s3.meta.endpoint_url,
+        "S3_KEY": "k",
+        "S3_SECRET": "s",
+        "S3_BUCKET": store.bucket,
+        "EMBEDDER": "hash",
+    }.items():
+        os.environ[f"LAKE_{k}"] = v
+    try:
+        cli(["code", str(repo)])
+        cli(["work"])
+    finally:
+        for k in ["DATABASE_URL", "S3_ENDPOINT", "S3_KEY", "S3_SECRET", "S3_BUCKET", "EMBEDDER"]:
+            os.environ.pop(f"LAKE_{k}", None)
+    assert "proj" in client.get("/code").text
+    assert "pkg" in client.get("/code/proj").text
+    assert "a.py" in client.get("/code/proj", params={"path": "pkg"}).text
+    page = client.get("/code/proj/file", params={"path": "pkg/a.py", "symbol": "helper"}).text
+    assert 'id="L1"' in page and "x &lt; 2" in page  # source is HTML-escaped
+    assert "pkg/b.py:3" in page and "used where?" in page
+    assert client.get("/code/proj/file", params={"path": "nope.py"}).status_code == 404
+    save_conversation_json(
+        eng,
+        Registrar(eng, store),
+        "Design chat",
+        [{"role": "user", "content": "hi"}],
+        tags=["lake"],
+    )
+    chats = client.get("/chats").text
+    assert "Design chat" in chats and "#lake" in chats and "mcp" in chats
+    assert "Design chat" in client.get("/chats", params={"tag": "lake"}).text
+    assert "Design chat" not in client.get("/chats", params={"origin": "claude"}).text

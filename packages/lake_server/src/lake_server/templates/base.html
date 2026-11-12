@@ -9,7 +9,7 @@ nav form{margin-left:auto}input[type=text],input[type=password]{padding:.35rem;m
 pre,code{background:#f5f5f5}pre{padding:.5rem;overflow:auto}.layout{display:flex;gap:2rem}
 aside{min-width:14rem;font-size:.9rem}main{flex:1;min-width:0}
 </style></head><body>
-<nav><a href="/">Browse</a> <a href="/new">New note</a> <a href="/review">Review</a> <a href="/jobs">Sources &amp; jobs</a>
+<nav><a href="/">Browse</a> <a href="/new">New note</a> <a href="/code">Code</a> <a href="/chats">Chats</a> <a href="/review">Review</a> <a href="/jobs">Sources &amp; jobs</a>
 <form action="/search" method="get"><input type="text" name="q" value="{{ q|default('') }}" placeholder="Search the lake"> <button>Search</button></form>
 <form action="/logout" method="post"><button>Log out</button></form></nav>
 {% block body %}{% endblock %}

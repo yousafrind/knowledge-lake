@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block body %}<h2>Chats</h2>
+<p class="muted">Filter: <a href="/chats">all</a> · <a href="/chats?origin=claude">claude</a> · <a href="/chats?origin=chatgpt">chatgpt</a> · <a href="/chats?origin=claude-code">claude-code</a> · <a href="/chats?origin=mcp">saved by agents</a>{% if tag %} · tag: {{ tag }}{% endif %}</p>
+{% for c in chats %}<div class="hit"><a href="/doc/{{ c.sha }}">{{ c.title }}</a>
+<span class="muted">{{ c.origin }} · {{ (c.saved or '')[:10] }}{% if c.redacted %} · secrets redacted{% endif %}</span>
+{% for t in c.tags %}<a class="muted" href="/chats?tag={{ t|urlencode }}">#{{ t }}</a> {% endfor %}</div>
+{% else %}<p class="muted">No chats yet.</p>{% endfor %}{% endblock %}

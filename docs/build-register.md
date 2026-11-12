@@ -494,3 +494,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_secrets_chats.py` (scanner, redaction, quarantine then release, three importers, write-back tools) and `test_gui.py::test_quarantine_shown_and_released_from_review`.
 
 **Please verify on your machine.** The plan said the export schemas were not checked, and they are still unchecked: the importers follow my understanding of the current Claude.ai / ChatGPT exports and Claude Code session files, tested only against hand-made samples. Run each on a real export; fix field names in `chat.py` if they differ. Also not done: the per-chat summary/decisions/open-questions extraction (needs an LLM step), Codex transcripts, generated-file `original.*` attachments, and a CLI command for the importers (call the adapters through `add()` in `lake_cli` or add `lake import-chats`).
+
+---
+
+## W-028 GUI code browser and chats (Done)
+
+**What.** Browse code repos and read saved chats in the web GUI; plus a `lake chats` import command.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Views / queries | `packages/lake_server/src/lake_server/browse_views.py` → `repos()`, `repo_listing()`, `file_view()`, `chats()` | Read-only queries that reuse the code tables and the newest indexed commit per repo (`code_tools.LATEST`). |
+| Code pages | `gui.py` → `/code`, `/code/{repo}?path=`, `/code/{repo}/file?path=&symbol=`; templates `code_repos.html`, `code_repo.html`, `code_file.html` | Folder-style navigation, source with line anchors (`#L12`, HTML-escaped so code can never inject markup), an outline of symbols linking to their lines, and "used where?" which lists name-match references with links to the exact line. |
+| Chat list | `/chats?origin=&tag=`; `chats.html` | Chats newest first with origin, redaction notice and `#tags`; filter by origin (claude, chatgpt, claude-code, agent-saved) or tag. A chat opens in the normal reader, where labels can be edited. |
+| Import command | `lake_cli/main.py` → `lake chats <claude\|chatgpt\|claude-code> <path>` | Closes the gap noted in W-027. |
+
+**Checks.** `tests/test_gui.py::test_code_browser_and_chat_list` (builds a real git repo, indexes it, browses folders, opens a file, follows a reference, lists/filter chats).
+
+**Limits.** No syntax highlighting; no per-commit history view; chats are listed by saved date from the manifest, not by conversation date.

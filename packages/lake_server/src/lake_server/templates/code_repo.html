@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block body %}
+<h2><a href="/code">Code</a> / {{ repo }}{% if prefix %} / {{ prefix }}{% endif %}</h2>
+{% if prefix %}<p><a href="/code/{{ repo }}?path={{ parent|urlencode }}">↑ up</a></p>{% endif %}
+<ul>{% for d in dirs %}<li>📁 <a href="/code/{{ repo }}?path={{ d.path|urlencode }}">{{ d.name }}</a> <span class="muted">{{ d.count }} files</span></li>{% endfor %}
+{% for f in files %}<li><a href="/code/{{ repo }}/file?path={{ f.path|urlencode }}">{{ f.name }}</a></li>{% endfor %}</ul>{% endblock %}

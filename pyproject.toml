@@ -34,6 +34,7 @@ select = ["E", "F", "I", "B", "UP"]
 "tests/*" = ["E501"]  # test data lines
 "packages/lake_processors/src/lake_processors/group.py" = ["E501"]  # long SQL strings
 "packages/lake_server/src/lake_server/code_tools.py" = ["E501"]  # long SQL strings
+"packages/lake_server/src/lake_server/browse_views.py" = ["E501"]  # long SQL strings
 
 [tool.mypy]
 strict = true

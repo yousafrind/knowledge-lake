@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+import json
 import re
 import threading
 from collections.abc import Awaitable, Callable
@@ -27,6 +28,8 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 
 from lake_server.admin import decide_group, jobs_overview, retry_job, review_items
+from lake_server.browse_views import chats, file_view, repo_listing, repos
+from lake_server.code_tools import find_references_json
 from lake_server.edit import current_markdown, save_revision, set_manual_label
 
 Handler = Callable[[Request], Awaitable[Response]]
@@ -214,6 +217,49 @@ def build_gui_routes(
             Registrar(engine, store).release(request.path_params["sha"])
         return RedirectResponse("/review", status_code=303)
 
+    async def code_home(request: Request) -> Response:
+        return templates.TemplateResponse(request, "code_repos.html", {"repos": repos(engine)})
+
+    async def code_repo(request: Request) -> Response:
+        repo = request.path_params["repo"]
+        prefix = request.query_params.get("path", "")
+        dirs, files = repo_listing(engine, repo, prefix)
+        parent = prefix.strip("/").rsplit("/", 1)[0] if "/" in prefix.strip("/") else ""
+        return templates.TemplateResponse(
+            request,
+            "code_repo.html",
+            {
+                "repo": repo,
+                "prefix": prefix.strip("/"),
+                "parent": parent,
+                "dirs": dirs,
+                "files": files,
+            },
+        )
+
+    async def code_file(request: Request) -> Response:
+        repo = request.path_params["repo"]
+        path = request.query_params.get("path", "")
+        view = file_view(engine, store, repo, path)
+        if view is None:
+            return HTMLResponse("Not found", status_code=404)
+        name = request.query_params.get("symbol", "")
+        refs = json.loads(find_references_json(engine, name, repo))["references"] if name else []
+        return templates.TemplateResponse(
+            request,
+            "code_file.html",
+            {"repo": repo, "path": path, "symbol": name, "refs": refs, **view},
+        )
+
+    async def chats_page(request: Request) -> Response:
+        origin = request.query_params.get("origin")
+        tag = request.query_params.get("tag")
+        return templates.TemplateResponse(
+            request,
+            "chats.html",
+            {"chats": chats(engine, origin, tag), "origin": origin, "tag": tag},
+        )
+
     async def jobs(request: Request) -> Response:
         return templates.TemplateResponse(
             request, "jobs.html", {**jobs_overview(engine), "flash": request.query_params.get("m")}
@@ -301,6 +347,10 @@ def build_gui_routes(
         Route("/review", guard(review)),
         Route("/review/group/{gid:int}/{verb}", guard(group_decision), methods=["POST"]),
         Route("/quarantine/{sha}/{verb}", guard(quarantine_decision), methods=["POST"]),
+        Route("/code", guard(code_home)),
+        Route("/code/{repo}", guard(code_repo)),
+        Route("/code/{repo}/file", guard(code_file)),
+        Route("/chats", guard(chats_page)),
         Route("/jobs", guard(jobs)),
         Route("/jobs/{jid}/retry", guard(job_retry), methods=["POST"]),
         Route("/sources/path", guard(add_path), methods=["POST"]),

@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block body %}
+<h2><a href="/code/{{ repo }}">{{ repo }}</a> / {{ path }}</h2>
+<div class="layout"><aside><h3>Outline</h3><ul>
+{% for s in symbols %}<li><a href="#L{{ s.start_line }}">{{ s.name }}</a> <span class="muted">{{ s.kind }}</span>
+ <a class="muted" href="/code/{{ repo }}/file?path={{ path|urlencode }}&symbol={{ s.name.split('.')[-1]|urlencode }}">used where?</a></li>{% endfor %}</ul>
+{% if symbol %}<h3>References to {{ symbol }}</h3><p class="muted">name matches, not scope-aware</p><ul>
+{% for r in refs %}<li><a href="/code/{{ repo }}/file?path={{ r.path|urlencode }}#L{{ r.line }}">{{ r.path }}:{{ r.line }}</a> <span class="muted">{{ r.kind }}</span></li>{% else %}<li class="muted">none</li>{% endfor %}</ul>{% endif %}
+</aside><main><pre style="font-size:13px">{% for n, line in lines %}<span id="L{{ n }}"><span class="muted">{{ "%4d"|format(n) }}</span>  {{ line|safe }}
+</span>{% endfor %}</pre></main></div>{% endblock %}
