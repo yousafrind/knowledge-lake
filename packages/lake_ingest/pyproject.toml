@@ -2,7 +2,7 @@
 name = "lake-ingest"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["lake-core", "httpx", "beautifulsoup4", "markdownify"]
+dependencies = ["lake-core", "httpx", "beautifulsoup4", "markdownify", "pathspec"]
 
 [build-system]
 requires = ["hatchling"]

@@ -2,12 +2,14 @@
 
 import argparse
 import sys
+from pathlib import Path
 
 from lake_core.db import make_engine
 from lake_core.objectstore import ObjectStore
 from lake_core.settings import load_settings
 from lake_ingest.adapter import Adapter
 from lake_ingest.crawl import CrawlAdapter
+from lake_ingest.disk import DiskAdapter
 from lake_ingest.registrar import Registrar
 from lake_ingest.upload import UploadAdapter
 
@@ -75,11 +77,17 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("add", help="add a file or folder").add_argument("path")
     sub.add_parser("crawl", help="crawl a website section").add_argument("url")
+    sub.add_parser("disk", help="walk a folder tree with ignore rules").add_argument("path")
     sub.add_parser("work", help="run queued jobs until none are ready")
     sub.add_parser("serve", help="run the MCP server on 127.0.0.1:8000")
     args = parser.parse_args(argv)
     if args.cmd == "add":
         print(add(args.path))
+    if args.cmd == "disk":
+        rules = Path(load_settings().config_dir) / "lakeignore.default"
+        disk = DiskAdapter(rules.read_text() if rules.is_file() else "")
+        print(add(args.path, disk))
+        print(f"{len(disk.skipped)} paths skipped")
     if args.cmd == "crawl":
         print(add(args.url, CrawlAdapter()))
     if args.cmd == "work":

@@ -344,3 +344,22 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_mcp_server.py`: `test_read_tools`, `test_neighbors_finds_similar_document`, and the tool-list test now expects six tools.
 
 **Not yet.** Label and group filters in `query` (they arrive with W-021). Scopes are still not enforced (W-032): every tool here is a `read` tool. `research` is W-030; code tools W-025.
+
+---
+
+## W-020 Disk walker and ignore rules (Done)
+
+**What.** `lake disk <folder>` walks a whole folder tree (read-only) and indexes only what is worth indexing, with a clear reason for everything skipped.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Walker | `packages/lake_ingest/src/lake_ingest/disk.py` → `DiskAdapter.scan()`, `.skipped` | Walks depth-first in sorted order, never writes. Skips symlinks, empty files and files over 200 MB, and records `(path, reason)` for each skip. An ignored folder is not entered at all. |
+| Rule layers | `DiskAdapter._layers()`, `_why()` | Three layers in gitignore syntax: built-in defaults (`config/lakeignore.default`), your `<root>/.lakeignore`, and every `.gitignore` found in the tree (applies below its own folder). The last matching layer wins, and `!pattern` can re-include. |
+| Explanations | `DiskAdapter.decide(root, path)` → `Decision(ignored, reason)` | Answers "why was this skipped?" including parent-folder ignores, e.g. `default rules: .venv/`. W-022 exposes it as a tool. |
+| Defaults | `config/lakeignore.default` | Dependency folders, VCS internals, caches, OS junk, binaries (`.exe`, `.so`, `.iso`...). |
+| Command | `lake_cli/main.py` → `lake disk <path>` | Reads the defaults from the configured `config_dir`; prints counts and how many paths were skipped. |
+| Fixture | `evals/fixtures/disk_tree/` | A fake tree with a venv, nested `.gitignore`, `.lakeignore`, an empty file. |
+
+**Checks.** `tests/test_disk_walker.py`: `test_walker_applies_default_lakeignore_and_gitignore_layers`, `test_decide_explains_paths_and_nested_ignores`, `test_size_cap_and_symlinks_skipped`.
+
+**Limits.** Files are read whole into memory (hence the size cap). Secrets and credentials are not detected yet: that is the secret scan in W-027, and until then do not point `lake disk` at a home folder that holds keys. The skipped list is printed as a count only; it is not stored in the database.

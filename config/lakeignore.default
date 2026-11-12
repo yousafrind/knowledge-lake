@@ -1,1 +1,43 @@
-# placeholder; filled by later work items
+# Default ignore rules for the disk walker (gitignore syntax). Add your own in <root>/.lakeignore.
+# Dependencies and build output
+node_modules/
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+site-packages/
+target/
+build/
+dist/
+.tox/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+# Version control internals
+.git/
+.hg/
+.svn/
+# Caches and system folders
+.cache/
+Cache/
+Caches/
+.Trash/
+$RECYCLE.BIN/
+System Volume Information/
+Library/
+AppData/
+# Junk and binaries that are never worth indexing
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.log
+*.iso
+*.dmg
+*.exe
+*.dll
+*.so
+*.o
+*.class
+*.jar

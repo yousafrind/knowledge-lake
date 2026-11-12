@@ -1399,6 +1399,7 @@ dependencies = [
     { name = "httpx" },
     { name = "lake-core" },
     { name = "markdownify" },
+    { name = "pathspec" },
 ]
 
 [package.metadata]
@@ -1407,6 +1408,7 @@ requires-dist = [
     { name = "httpx" },
     { name = "lake-core", editable = "packages/lake_core" },
     { name = "markdownify" },
+    { name = "pathspec" },
 ]
 
 [[package]]
