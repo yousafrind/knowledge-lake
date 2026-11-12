@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     s3_key: str
     s3_secret: str
     s3_bucket: str = "lake"
+    embedder: str = "bge-small"  # or "hash" (offline, lexical only)
     config_dir: Path = Path("config")
 
     @classmethod

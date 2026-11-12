@@ -184,3 +184,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Choice to review.** 1200 characters is a starting size, not tuned; retrieval evals (W-014) should decide.
 
 **Fix made during W-010.** The registrar (W-006) queued the markdown shortcut's `chunk` job with a content hash, but `chunk` targets a package id (`<hash>:<rev>`). Caught by the W-010 end-to-end test; fixed in `Registrar.register()` and covered by `tests/test_registrar.py::test_markdown_chunk_job_targets_the_package`. Job targets are: `parse` → content hash; every later step → package id.
+
+---
+
+## W-011 Embedding and full-text index (Done, real model unverified)
+
+**What.** Makes every chunk findable by meaning (vectors) and by words (full-text).
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Embedder interface + implementations | `packages/lake_core/src/lake_core/embedding.py` → `Embedder`, `HashEmbedder`, `BgeSmallEmbedder`, `make_embedder()`, `to_pgvector()` | Documents (processors) and questions (retrieval) must use the *same* model, and those two packages cannot import each other, so the embedder lives in `lake_core`. `HashEmbedder` is offline and deterministic (word overlap only) for tests and no-download use. `BgeSmallEmbedder` (bge-small, 384 dims) is the real default. |
+| Setting | `lake_core/settings.py` → `Settings.embedder` (default `bge-small`, or `hash`) | Choose the model without code changes. |
+| Embed step | `packages/lake_processors/src/lake_processors/embed.py` → `EmbedProcessor.run()` | Embeds only chunks that have no vector for this model yet, in batches of 64. `version` is the model name, so switching model creates new jobs and re-embeds everything. |
+| Full-text | `chunk.tsv` generated column + `chunk_tsv` GIN index (W-004 migration) | Postgres keeps it up to date by itself, so no processor is needed. |
+
+**Checks.** `tests/test_embed.py::test_embed_and_full_text`: vector search ranks the right chunk first, full-text finds the other, rerun adds no rows.
+
+**Gap.** `BgeSmallEmbedder` needs `sentence-transformers` and a model download (blocked in this sandbox), so it is untested here. Install with `pip install sentence-transformers` on your machine; until then use `LAKE_EMBEDDER=hash` (search is word-overlap only).
