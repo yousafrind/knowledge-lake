@@ -579,3 +579,20 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_auth.py`: verifier, each tool's scope (read-only token denied code/admin tools, no token denied), open when enforcement is off, HTTP 401 without/with a wrong token and not-401 with a valid one, rate limit per token, and `build_app` wiring from `tokens.toml`.
 
 **Limits.** No OAuth authorization server, so claude.ai and ChatGPT web connectors cannot connect yet; Claude Code and Codex with a configured bearer token can. Caddy, DNS, TLS and the IP ranges are untested here; ChatGPT/Codex ranges were not looked up. `photos:read` is a recognised scope but nothing checks it yet (no photo tools exist). Rate limit counters are in memory.
+
+---
+
+## W-033 Client contract tests
+
+**What.** Tests that start the real server over HTTP (uvicorn on a free port, bearer auth and scopes on) and talk to it with the MCP client, the way a cloud client would.
+
+| Contract | Checked in `tests/test_client_contract.py` | Why it matters |
+|---|---|---|
+| ChatGPT connector shape | `test_chatgpt_shape_search_then_fetch` | `search` and `fetch` must each take exactly one required string argument (`query`, `id`); search results carry `id`, `title`, `url`, `text`; fetch returns `id`, `title`, `text`, `url`, `metadata`; no generated `answer` field anywhere. |
+| Tool names | `test_tools_listed_by_name` | Claude and Codex address tools by name; renaming one is a breaking change this catches. |
+| Scopes over the wire | `test_scopes_hold_over_http` | A `read` token gets an error from `code_search`; a token with `code:read` does not. |
+| Bad token | `test_wrong_token_cannot_connect` | A wrong bearer token cannot open a session. |
+
+The nightly schedule is `.github/workflows/ci.yml` (`schedule`, 03:17 UTC), which runs the whole suite, these tests included.
+
+**Limits.** These are our own reading of each client's rules, run with the MCP SDK client; no real claude.ai, ChatGPT or Codex connection was made, so a change in their requirements would not show up here. The monthly restore drill is not scheduled in CI (it needs the real host; run `make restore-drill`).
