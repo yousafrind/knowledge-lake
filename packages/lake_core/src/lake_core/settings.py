@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     s3_key: str
     s3_secret: str
     s3_bucket: str = "lake"
+    gpu_url: str | None = None  # burst GPU parse endpoint (workers/gpu); optional
+    gpu_token: str | None = None
     gui_password: str | None = None  # the web GUI is off until this is set
     embedder: str = "bge-small"  # or "hash" (offline, lexical only)
     config_dir: Path = Path("config")

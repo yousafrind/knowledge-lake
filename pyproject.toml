@@ -25,7 +25,7 @@ dev = ["pytest", "ruff", "mypy", "import-linter", "psycopg[binary]", "boto3", "m
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["tests/fixtures"]
+extend-exclude = ["tests/fixtures", "workers"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

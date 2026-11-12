@@ -26,7 +26,7 @@ def add(path: str, adapter: Adapter | None = None) -> str:
     return f"{seen} files, {new_content} new content, {new_locations} new locations"
 
 
-def build_registry(embedder_name: str):  # type: ignore[no-untyped-def]
+def build_registry(embedder_name: str, gpu_url: str | None = None, gpu_token: str | None = None):  # type: ignore[no-untyped-def]
     from lake_core.embedding import make_embedder
     from lake_parsers.base import Parser
     from lake_parsers.plain import PlainTextParser
@@ -45,7 +45,12 @@ def build_registry(embedder_name: str):  # type: ignore[no-untyped-def]
     except Exception:
         pass
     reg = Registry()
-    reg.add(ParseProcessor(parsers, PlainTextParser()))
+    escalation = None
+    if gpu_url:
+        from lake_parsers.remote import RemoteParser
+
+        escalation = RemoteParser(gpu_url, token=gpu_token)
+    reg.add(ParseProcessor(parsers, PlainTextParser(), escalation))
     reg.add(ChunkProcessor())
     reg.add(LinkProcessor())
     reg.add(EmbedProcessor(make_embedder(embedder_name)))
@@ -58,7 +63,10 @@ def work() -> str:
 
     s = load_settings()
     store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
-    n = run_until_idle(Context(make_engine(s.database_url), store), build_registry(s.embedder))
+    n = run_until_idle(
+        Context(make_engine(s.database_url), store),
+        build_registry(s.embedder, s.gpu_url, s.gpu_token),
+    )
     return f"{n} jobs run"
 
 

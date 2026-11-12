@@ -9,6 +9,7 @@ from lake_core.jobs import enqueue_job
 from lake_core.objectstore import get_original, write_package
 from lake_core.titles import title_from_markdown
 from lake_parsers.base import Parser
+from lake_parsers.qa import score
 from sqlalchemy import text
 
 from lake_processors.contract import Context
@@ -19,9 +20,12 @@ class ParseProcessor:
     version = "1"
     cost = "cpu"
 
-    def __init__(self, parsers: dict[str, Parser], default: Parser) -> None:
+    def __init__(
+        self, parsers: dict[str, Parser], default: Parser, escalation: Parser | None = None
+    ) -> None:
         self.parsers = parsers  # source_type -> parser
         self.default = default
+        self.escalation = escalation  # stronger parser, tried when QA fails
 
     def run(self, target: str, ctx: Context) -> None:
         with ctx.engine.begin() as c:
@@ -40,7 +44,21 @@ class ParseProcessor:
                 return
         parser = self.parsers.get(stype, self.default)
         filename = PurePosixPath(path or target).name
-        parsed = parser.parse(get_original(ctx.store, target), filename)
+        original = get_original(ctx.store, target)
+        parsed = parser.parse(original, filename)
+        parsed.qa = score(parsed, len(original), stype)
+        if not parsed.qa["ok"] and self.escalation is not None:
+            first_reasons = parsed.qa["reasons"]
+            try:
+                better = self.escalation.parse(original, filename)
+                better.qa = score(better, len(original), stype)
+                better.qa["escalated_to"] = self.escalation.name
+                better.qa["first_failure"] = first_reasons
+                if better.qa["ok"] or better.qa["chars"] > parsed.qa["chars"]:
+                    parsed, parser = better, self.escalation
+            except Exception as e:  # keep the first result, flag it for review
+                parsed.qa["escalation_error"] = f"{type(e).__name__}: {e}"
+        parsed.qa["needs_review"] = not parsed.qa["ok"]
         files = {
             "content.md": parsed.markdown.encode(),
             "structure.json": json.dumps(parsed.structure).encode(),

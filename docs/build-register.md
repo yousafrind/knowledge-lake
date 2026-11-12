@@ -309,3 +309,21 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_link.py`: `test_resolve_ref`, `test_links_resolve_even_when_target_arrives_later`; `tests/test_gui.py` now checks the link sections.
 
 **Limits.** Markdown inline links only (not reference-style `[x][1]`, bare URLs or HTML `<a>` in non-crawled files). Package-level edges for older revisions are not tracked; links belong to the content.
+
+---
+
+## W-018 QA scoring and MinerU escalation (Done in code, GPU worker unverified)
+
+**What.** After parsing, the result is checked; if it looks bad, a stronger parser (MinerU on a rented GPU) is tried, and anything still doubtful is flagged for review.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| QA scoring | `packages/lake_parsers/src/lake_parsers/qa.py` → `score()` | Cheap checks: empty output; garbled characters (more than 2% replacement/control characters); far too little text for a big PDF/DOCX/EPUB (a failed scan). Returns `ok`, `reasons`, counts. |
+| Escalation | `lake_processors/parse.py` → `ParseProcessor(..., escalation=...)` | Runs QA after the first parse. On failure it tries the escalation parser and keeps whichever result is OK or has more text; the manifest `qa` records `escalated_to` and `first_failure`. If escalation errors, the first result is kept with `needs_review: true` and `escalation_error`. Nothing is silently lost. |
+| Remote parser | `lake_parsers/remote.py` → `RemoteParser` (`POST {url}/parse`, bearer token) | The main server talks to the GPU box over HTTP; the GPU box never gets database credentials. |
+| Settings / wiring | `lake_core/settings.py` → `gpu_url`, `gpu_token`; `lake_cli.build_registry()` | Escalation is on only when `LAKE_GPU_URL` is set. |
+| GPU worker | `workers/gpu/app.py`, `workers/gpu/Dockerfile` | FastAPI wrapper that runs the `mineru` command. **Not run or tested**: no GPU, no model access here. Check the MinerU command and output path against the installed version first. |
+
+**Checks.** `tests/test_qa_escalation.py`: `test_qa_flags_empty_garbled_and_sparse_output`, `test_failed_qa_escalates_to_stronger_parser`, `test_escalation_failure_keeps_first_result_flagged`, `test_remote_parser_posts_file_and_reads_markdown` (local HTTP stub).
+
+**Open items from the architecture.** MinerU licence still needs reading before real use (open question in `architecture.md`). The "review queue" that lists `needs_review` packages arrives with W-023.

@@ -2,7 +2,7 @@
 name = "lake-parsers"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["httpx"]
 
 [project.optional-dependencies]
 docling = ["docling"]

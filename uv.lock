@@ -1413,6 +1413,9 @@ requires-dist = [
 name = "lake-parsers"
 version = "0.0.0"
 source = { editable = "packages/lake_parsers" }
+dependencies = [
+    { name = "httpx" },
+]
 
 [package.optional-dependencies]
 docling = [
@@ -1420,7 +1423,10 @@ docling = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "docling", marker = "extra == 'docling'" }]
+requires-dist = [
+    { name = "docling", marker = "extra == 'docling'" },
+    { name = "httpx" },
+]
 provides-extras = ["docling"]
 
 [[package]]
