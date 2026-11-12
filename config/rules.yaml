@@ -1,1 +1,12 @@
-# placeholder; filled by later work items
+# Classification rules. Precedence (highest first): manual decisions, these rules, folder priors,
+# content signals. First matching rule per label key wins; a manual label is never overwritten.
+# `path` is a gitignore-style pattern matched against the file's stored path.
+rules:
+  - path: "**/Taxes/**"
+    labels: {topic: taxes}
+  - path: "**/Invoices/**"
+    labels: {topic: invoices}
+  - path: "**/books/**"
+    labels: {kind: book}
+  - path: "**/papers/**"
+    labels: {kind: paper}

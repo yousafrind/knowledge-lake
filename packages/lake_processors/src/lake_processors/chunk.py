@@ -98,3 +98,4 @@ class ChunkProcessor:
                 )
             enqueue_job(c, "embed", target)
             enqueue_job(c, "link", target)
+            enqueue_job(c, "classify", target)

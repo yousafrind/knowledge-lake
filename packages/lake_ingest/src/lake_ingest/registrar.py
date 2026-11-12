@@ -12,17 +12,7 @@ from lake_core.titles import title_from_markdown
 from sqlalchemy import Engine, text
 
 from lake_ingest.adapter import Item
-
-SUFFIX_TYPES = {
-    ".pdf": "pdf",
-    ".md": "markdown",
-    ".txt": "text",
-    ".html": "html",
-    ".htm": "html",
-    ".docx": "docx",
-    ".epub": "epub",
-    ".json": "json",
-}
+from lake_ingest.types import detect_type
 
 
 @dataclass(frozen=True)
@@ -32,10 +22,6 @@ class Result:
     new_location: bool
 
 
-def detect_type(item: Item) -> str:
-    return item.source_type or SUFFIX_TYPES.get(PurePosixPath(item.path).suffix.lower(), "binary")
-
-
 class Registrar:
     def __init__(self, engine: Engine, store: ObjectStore) -> None:
         self.engine = engine
@@ -43,7 +29,7 @@ class Registrar:
 
     def register(self, item: Item) -> Result:
         sha = ids.content_sha256(item.data)
-        stype = detect_type(item)
+        stype = item.source_type or detect_type(item.data, item.path)
         with self.engine.begin() as c:
             source_id = c.execute(
                 text(

@@ -12,6 +12,7 @@ from lake_ingest.crawl import CrawlAdapter
 from lake_ingest.disk import DiskAdapter
 from lake_ingest.registrar import Registrar
 from lake_ingest.upload import UploadAdapter
+from lake_processors.contract import Registry
 
 
 def add(path: str, adapter: Adapter | None = None) -> str:
@@ -28,13 +29,19 @@ def add(path: str, adapter: Adapter | None = None) -> str:
     return f"{seen} files, {new_content} new content, {new_locations} new locations"
 
 
-def build_registry(embedder_name: str, gpu_url: str | None = None, gpu_token: str | None = None):  # type: ignore[no-untyped-def]
+def build_registry(
+    embedder_name: str,
+    gpu_url: str | None = None,
+    gpu_token: str | None = None,
+    rules_yaml: str = "",
+) -> Registry:
     from lake_core.embedding import make_embedder
     from lake_parsers.base import Parser
     from lake_parsers.plain import PlainTextParser
     from lake_processors.chunk import ChunkProcessor
-    from lake_processors.contract import Registry
+    from lake_processors.classify import ClassifyProcessor, load_rules
     from lake_processors.embed import EmbedProcessor
+    from lake_processors.group import GroupProcessor
     from lake_processors.link import LinkProcessor
     from lake_processors.parse import ParseProcessor
 
@@ -55,8 +62,16 @@ def build_registry(embedder_name: str, gpu_url: str | None = None, gpu_token: st
     reg.add(ParseProcessor(parsers, PlainTextParser(), escalation))
     reg.add(ChunkProcessor())
     reg.add(LinkProcessor())
-    reg.add(EmbedProcessor(make_embedder(embedder_name)))
+    reg.add(ClassifyProcessor(load_rules(rules_yaml)))
+    embedder = make_embedder(embedder_name)
+    reg.add(EmbedProcessor(embedder))
+    reg.add(GroupProcessor(embedder.model))
     return reg
+
+
+def _rules_text(config_dir: Path) -> str:
+    f = Path(config_dir) / "rules.yaml"
+    return f.read_text() if f.is_file() else ""
 
 
 def work() -> str:
@@ -67,7 +82,7 @@ def work() -> str:
     store = ObjectStore(s.s3_endpoint, s.s3_key, s.s3_secret, s.s3_bucket)
     n = run_until_idle(
         Context(make_engine(s.database_url), store),
-        build_registry(s.embedder, s.gpu_url, s.gpu_token),
+        build_registry(s.embedder, s.gpu_url, s.gpu_token, _rules_text(s.config_dir)),
     )
     return f"{n} jobs run"
 

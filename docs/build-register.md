@@ -363,3 +363,22 @@ Entry format: **what** (plain words) · **where** (file / function / class) · *
 **Checks.** `tests/test_disk_walker.py`: `test_walker_applies_default_lakeignore_and_gitignore_layers`, `test_decide_explains_paths_and_nested_ignores`, `test_size_cap_and_symlinks_skipped`.
 
 **Limits.** Files are read whole into memory (hence the size cap). Secrets and credentials are not detected yet: that is the secret scan in W-027, and until then do not point `lake disk` at a home folder that holds keys. The skipped list is printed as a count only; it is not stored in the database.
+
+---
+
+## W-021 Dedupe, type detection, classify and group (Done, subset of Req 6)
+
+**What.** Files get a trustworthy type, labels, and suggested groupings (duplicates, versions, near-copies) without anything being moved or renamed.
+
+| Piece | Where | Why, in plain words |
+|---|---|---|
+| Exact dedupe | already the registrar (W-006); `GroupProcessor` records an accepted `exact_duplicate` group when one content has several locations | One document in many places is parsed once; the group makes it visible. |
+| Type detection | `packages/lake_ingest/src/lake_ingest/types.py` → `detect_type()`, `sniff()` | Unambiguous signatures (PDF, PNG, JPEG, GIF) win over extensions; plain-text suffixes are trusted for text; everything else goes to Google's Magika model (runs offline on CPU). Used by the registrar. |
+| Label tables | `lake_core/migrations/versions/0004_labels_groups.py` → `label`, `doc_group`, `doc_group_member` | A label is `(file, key, value, source, confidence)`; sources are `manual`, `rule`, `folder`, `content`. Groups are computed rows with a status (`suggested`/`accepted`/`rejected`) for the review screen. |
+| Classification | `packages/lake_processors/src/lake_processors/classify.py` → `ClassifyProcessor`, `load_rules()`, `effective_labels()`; rules in `config/rules.yaml` | Adds the detected type (content), the parent folder name (folder, low confidence) and any matching path rule. `effective_labels()` picks per key by precedence manual > rule > folder > content. The upsert never overwrites a `manual` row. The processor version includes a hash of the rules, so editing `rules.yaml` re-runs classification. |
+| Grouping | `lake_processors/group.py` → `GroupProcessor`, `family_key()` | **Version families:** same folder, same file name after removing words like `v2`, `final`, `copy`, `(2)`, dates. **Near-duplicates:** documents whose average vectors are within cosine distance 0.1. Both are *suggestions*. Queued after embedding. |
+| Wiring | `ChunkProcessor` queues `classify`; `EmbedProcessor` queues `group`; `lake_cli.build_registry(..., rules_yaml)` | |
+
+**Checks.** `tests/test_classify_group.py`: `test_type_detection_trusts_content_for_binaries`, `test_family_key_ignores_version_words`, `test_labels_follow_rules_and_manual_wins` (manual survives a rerun), `test_groups_exact_duplicates_families_and_near_duplicates`.
+
+**Not built from Req 6 (be aware):** perceptual-hash image duplicates, EXIF/metadata extraction, project bundles, photo events, topic clusters, backup lineages, partial-hash dedupe before reading (the walker reads whole files), repo-root routing to the code indexer. Near-duplicate quality depends on the real embedder; the 0.1 threshold was tested only with the hash embedder. Label and group filters in `query` are not wired yet (use `effective_labels()` / SQL).

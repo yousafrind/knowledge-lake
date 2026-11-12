@@ -21,7 +21,7 @@ lake-server = { workspace = true }
 lake-cli = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy", "import-linter", "psycopg[binary]", "boto3", "moto[server]", "types-jsonschema"]
+dev = ["pytest", "ruff", "mypy", "import-linter", "psycopg[binary]", "boto3", "moto[server]", "types-jsonschema", "types-pyyaml"]
 
 [tool.ruff]
 line-length = 100
@@ -29,6 +29,9 @@ extend-exclude = ["tests/fixtures", "workers"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"packages/lake_processors/src/lake_processors/group.py" = ["E501"]  # long SQL strings
 
 [tool.mypy]
 strict = true
